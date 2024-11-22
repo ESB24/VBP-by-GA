@@ -21,7 +21,7 @@ end
     Session(C::Int64, r::Round{N}) where N
     Session(C::Int64, r::Vector{Round{N}}) where N
 ```
-Constructor for the Session data structure.
+Constructor for the `Session` data structure.
 `C` is the maximum capacity per output (Lmax). 
 `O` is the length of the assignment vector (the session will start empty). 
 Otherwise and replacing `O` to create non empty session you could provide a unique or a vector of route `r`. 
@@ -150,7 +150,7 @@ criterion includes:
  - `NonFilledOutputs`: the number of non full output (very optimistic).
  - `LoadSTD`: standard deviation of the output loads.
  - `NonNulLoadSTD`: standard deviation of the output loads. (don't take into account empty output)
-These function will return a `Float64` or a `Tuple{Vararg{Float64, N}}` (N is the number of criterion), structure which could easily be used along with the `isless` or `sortperm` functions (many Julia soting function rely on `isless()` if the `by` attribute is not overwritten).
+These function will return a `Float64` or a `Tuple{Vararg{Float64, N}}` (N is the number of criterion used), structure which could easily be used along with the `isless` or `sortperm` functions (many Julia soting function rely on `isless()` if the `by` attribute is not overwritten).
 """
 # apply multiple criteria on Minimalistic Session
 @inline fitness(loads::Vector{Int64}, C::Int64, TAG::Type{<:FitnessSession})::Float64                                       = specialized(loads, C, TAG)
@@ -505,6 +505,9 @@ end
     addRound_SUB_01LP!(s::Session, r::Round{N}, tl::Int64 = 100, env::Gurobi.Env = Gurobi.Env())
 ```
 Matheuristic reliying on a model to found an intresting mail assignment in the added route.
+
+**Binary variables:**
+ - ```Latex x \in \{0, 1\} ```Latex
 """
 function addRound_SUB_01LP!(s::Session, r::Round{N}, tl::Int64 = 100, env::Gurobi.Env = Gurobi.Env()) where N
 # ===========< Data:                    OK >===========
