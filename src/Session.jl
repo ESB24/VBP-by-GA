@@ -507,7 +507,7 @@ end
 Matheuristic reliying on a model to found an intresting mail assignment in the added route.
 
 **Binary variables:**
- - ```Latex x \in \{0, 1\} ```Latex
+ - ```Latex x \\in \\{0, 1\\} ```
 """
 function addRound_SUB_01LP!(s::Session, r::Round{N}, tl::Int64 = 100, env::Gurobi.Env = Gurobi.Env()) where N
 # ===========< Data:                    OK >===========

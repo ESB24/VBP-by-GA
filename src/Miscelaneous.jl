@@ -244,12 +244,12 @@ function batterieHard_01LP_GA_Build(;
         # (("Skewed", 20, 200), ["instanceBigBatche_$(i)_O200_R20_C80_opt_1.txt" for i=1:30]),
         # (("Skewed", 40, 200), ["instanceBigBatche_$(i)_O200_R40_C80_opt_2.txt" for i=1:30]),
         # (("Skewed", 100, 200), ["instanceBigBatche_$(i)_O200_R100_C80_opt_5.txt" for i=1:30]),
-        (("Chunk", 20, 200), ["instanceDistribHard_$(i)_O200_R20_C100_opt_1.txt" for i=1:30]),
-        (("Chunk", 40, 200), ["instanceDistribHard_$(i)_O200_R40_C100_opt_2.txt" for i=1:30]),
-        (("Chunk", 100, 200), ["instanceDistribHard_$(i)_O200_R100_C100_opt_5.txt" for i=1:30])],
+        (("Chunk", 20, 200), ["instanceDistribHard_$(i)_O200_R20_C100_opt_1.txt" for i=1:1]),],
+        # (("Chunk", 40, 200), ["instanceDistribHard_$(i)_O200_R40_C100_opt_2.txt" for i=1:30]),
+        # (("Chunk", 100, 200), ["instanceDistribHard_$(i)_O200_R100_C100_opt_5.txt" for i=1:30])],
         MILP_time_limit     ::Int64             = 180,
         GA_time_limit       ::Int64             = 180,
-        result_path         ::String            = "TER/results/results.txt"
+        result_path         ::String            = "../data/results.txt"
     )
 # ==========< Init >==========
     nbLine::Int64 = 0

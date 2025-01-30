@@ -42,7 +42,7 @@ delta2 = 0.9
 
 begin
     # ==========< Gathering Datas >==========
-    mat = parseMailXLSX("TER/data/Trafic/trafic_20_200_35_1.xlsx")
+    mat = parseMailXLSX("../data/Trafic/trafic_20_200_35_1.xlsx")
     _, O = size(mat) 
     # ==========< Initialisation >==========
     # =====< Full instance >=====

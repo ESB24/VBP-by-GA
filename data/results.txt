@@ -1,0 +1,12 @@
+
+
+    \begin{table}[H]
+        \centering
+        \resizebox{\textwidth}{!}{
+        \begin{tabular}{|| c|c|c|c || c|c|c|c || c|c|c|c || c|c|c|c ||}
+            \hline
+            \multicolumn{4}{||l||}{Instance} & \multicolumn{4}{l||}{0-1LP} & \multicolumn{4}{l||}{GA} & \multicolumn{4}{l||}{Build solution} \\
+            \hline
+            type & $|R|$ & $|O|$ & \textsc{OPTI} & \#{\tt OPTI} &  {\tt CPU} & {\tt GAP} & {\tt OBJ} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} \\
+            \hline
+            \hline
