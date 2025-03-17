@@ -6,11 +6,11 @@ begin # Library
     # Miscelaneous
     using Random
 end
-
+    
 begin # Files
     include("parsing.jl")
 
-    include("Round.jl")
+    include("Route.jl")
     include("Session.jl")
     include("Solution.jl")
 
@@ -24,13 +24,6 @@ begin # Files
 
     include("SessionRebuild.jl")
 end
-
-call = 0
-repairedBuild = 0
-improvedOverAll = 0
-locked = 0
-delta1 = 0.2
-delta2 = 0.9
 
 # ================================================================================= #
 #  #######  ##    #   ######  #######   #####   ##    #   ######  #######   ######  #
@@ -48,26 +41,26 @@ begin
     # =====< Full instance >=====
     λ = 0.25
     instance::Instance = Instance(mat, λ)
-    # instance.C = max(round(Int64, sum(mat) / (5 * O)), maximum(mat))
+    # instance.Lmax = max(round(Int64, sum(mat) / (5 * O)), maximum(mat))
     # =====< Small instance >=====
     instanceS::Instance = Instance(mat[1:40, :], λ)
-    # instanceS.C = max(round(Int64, sum(mat) / (5 * O)), maximum(mat))
+    # instanceS.Lmax = max(round(Int64, sum(mat) / (5 * O)), maximum(mat))
 end
 
 begin
     # Oscar
-    numberOfOutputs, numberOfRounds, numberOfSessions, sessions, Lmax = parseOptiInstance("TER/data/hard/test/instance_1_200_644_opt_10_50_50.txt")
+    numberOfOutputs, numberOfRoutes, numberOfSessions, sessions, Lmax = parseOptiInstance("TER/data/hard/test/instance_1_200_644_opt_10_50_50.txt")
     mat = vect2D_to_matrix(normalizeOptiInstance(sessions))
     λ = 0.25
     instance::Instance = Instance(mat, λ)
-    instance.C = Lmax
+    instance.Lmax = Lmax
 end
 begin
     # My instances
     Lmax, mat, nbSession = parseMyInstance("TER/data/Gaussian/instanceGaussian_1_O200_R1000_C300_opt_50.txt")
     λ = 0.25
     instance::Instance = Instance(mat, λ)
-    instance.C = Lmax
+    instance.Lmax = Lmax
 end
 
 # O = 20
@@ -91,7 +84,7 @@ begin
 
     Δ               ::Int64                             = 2
     # TAG_FitSes      ::Type{<:FitnessSession}            = LoadSTD
-    TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[SAVA, NFBA, OPTIMOVE_STAGE1]
+    TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[SAVA, NFBA, OPTIMOVE_STAGE1]
     env             ::Gurobi.Env                        = Gurobi.Env()
     tl              ::Int64                             = 5
 
@@ -101,9 +94,9 @@ begin
         Lmax, mat, nbSession = parseMyInstance("TER/data/BigBatch/instanceBigBatche_$(i)_O200_R600_C300_opt_10.txt")
         λ = 0.25
         instance::Instance = Instance(mat[1:55, :], λ)
-        instance.C = Lmax
+        instance.Lmax = Lmax
 
-        perm            ::Vector{Int64}                     = sortperm([(-fitness(r, Max), -fitness(r, NbBatches)) for r in instance.rounds])
+        perm            ::Vector{Int64}                     = sortperm([(-fitness(r, Max), -fitness(r, NbBatches)) for r in instance.route])
 
         sol, flag, _, _ = GA(instance, TAG_FitGA=ObjGA_2)# sol = buildSolution_FFD_final(instance, perm, TAG_FitSes)
         sumObj += fitness(sol, ObjGA)
@@ -121,10 +114,10 @@ end
 
 # ==========< Benchmark 1: >==========
 # best current result in average
-perm            ::Vector{Int64}                     = sortperm([(-fitness(r, Max), -fitness(r, NbBatches), -fitness(r, StdBatches)) for r in instance.rounds])
+perm            ::Vector{Int64}                     = sortperm([(-fitness(r, Max), -fitness(r, NbBatches), -fitness(r, StdBatches)) for r in instance.route])
 Δ               ::Int64                             = 2
 TAG_FitSes      ::Type{<:FitnessSession}            = LoadSTD
-TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[SAVA, NFBA, OPTIMOVE_VALID_INF]
+TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[SAVA, NFBA, OPTIMOVE_VALID_INF]
 env             ::Gurobi.Env                        = Gurobi.Env()
 tl              ::Int64                             = 5
 
@@ -133,7 +126,7 @@ repairedBuild = 0
 improvedOverAll = 0
 locked = 0
 
-s::Session = Session(instance.C, [], zeros(Int64, instance.nbOut))
+s::Session = Session(instance.Lmax, [], zeros(Int64, instance.nbOut))
 sol::Solution = Solution(perm, [s])
 
 buildProcedure!(instance, sol, sol.permutation[1])
@@ -141,21 +134,21 @@ buildProcedure!(instance, sol, sol.permutation[2])
 buildProcedure!(instance, sol, sol.permutation[3])
 buildProcedure!(instance, sol, sol.permutation[4])
 
-BenchmarkTools.@benchmark begin; buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env, tl=tl); end
+BenchmarkTools.@benchmark begin; buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env, tl=tl); end
 BenchmarkTools.@benchmark buildSolution_FFD_final(instance, perm, TAG_FitSes)
 BenchmarkTools.@benchmark buildSolution_FFD_SAVA_SPCF_OPTIMOVE(instance, perm, TAG_FitSes=TAG_FitSes, env=env)
 
 
 
 begin
-    sol = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env, tl=tl)
+    sol = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env, tl=tl)
     println(sol)
 end
 
 tmp = fitness(sol, ObjGA)
 ProfileCanvas.@profview begin
                             for _=1:100
-                                sol = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env, tl=tl)
+                                sol = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env, tl=tl)
                             end
                         end
 begin
@@ -166,9 +159,9 @@ begin
         improvedOverAll = 0
         sumObj = 0
         iter = 10000
-        TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[SAVA, TAG_OPTIMOVE]
+        TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[SAVA, TAG_OPTIMOVE]
         for _=1:iter
-            sol = buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env, tl=tl)
+            sol = buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env, tl=tl)
             sumObj += fitness(sol, ObjGA)
         end
         println("\n TAG -> $(TAG_OPTIMOVE)\n call -> $(call)\n repairedBuild -> $(repairedBuild)\n repaired % -> $((repairedBuild * 100) / call)\n improvedOverAll -> $(improvedOverAll)\n mean obj -> $(sumObj / iter)")
@@ -179,12 +172,12 @@ begin
     call = 0
     repairedBuild = 0
     improvedOverAll = 0
-    TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[SAVA, OPTIMOVE_S1_NEGSTD]
+    TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[SAVA, OPTIMOVE_S1_NEGSTD]
     for _=1:100
         # println("|")
-        buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env, tl=tl)
+        buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env, tl=tl)
     end
-    # s = buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env, tl=tl)
+    # s = buildSolution_FF(instance, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env, tl=tl)
     # print(s)
     println("\n call -> $(call)\n repairedBuild -> $(repairedBuild)\n improvedOverAll -> $(improvedOverAll)")
 end
@@ -192,11 +185,11 @@ end
 # ==========< Benchmark 2: >==========
 # current laposte behavior
 BenchmarkTools.@benchmark   begin
-    perm            ::Vector{Int64}                     = sortperm([(-fitness(r, Identity)) for r in instance.rounds])
+    perm            ::Vector{Int64}                     = sortperm([(-fitness(r, Identity)) for r in instance.route])
     Δ               ::Int64                             = 2
     TAG_FitSes      ::Type{<:FitnessSession}            = LoadSTD
-    TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[RAW]
-    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound, env=env)
+    TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[RAW]
+    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute, env=env)
 end
 
 # ==========< Benchmark 3: >==========
@@ -205,8 +198,8 @@ BenchmarkTools.@benchmark   begin
     perm            ::Vector{Int64}                     = sortedPerm(instance, nothing) # nothing as sorting criteria create a random permutation
     Δ               ::Int64                             = 2
     TAG_FitSes      ::Type{<:FitnessSession}            = LoadSTD
-    TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[SAVANT, OPTIMOVE]
-    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound)
+    TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[SAVANT, OPTIMOVE]
+    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute)
 end
 
 # ==========< Benchmark 4: >==========
@@ -215,8 +208,8 @@ BenchmarkTools.@benchmark   begin
     perm            ::Vector{Int64}                     = sortedPerm(instance, nothing) # nothing as sorting criteria create a random permutation
     Δ               ::Int64                             = 2
     TAG_FitSes      ::Type{<:FitnessSession}            = LoadSTD
-    TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[SAVANT_MIN_STD, OPTIMOVE]
-    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound)
+    TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[SAVANT_MIN_STD, OPTIMOVE]
+    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute)
 end
 
 
@@ -226,8 +219,8 @@ BenchmarkTools.@benchmark   begin
     perm            ::Vector{Int64}                     = sortedPerm(instance, StdAssignment) # nothing as sorting criteria create a random permutation
     Δ               ::Int64                             = 2
     TAG_FitSes      ::Type{<:FitnessSession}            = LoadSTD
-    TAG_AddRound    ::Vector{Type{<:SimpleAddRound}}    = Type{<:SimpleAddRound}[RAW, SPCF]
-    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRound=TAG_AddRound)
+    TAG_AddRoute    ::Vector{Type{<:SimpleAddRoute}}    = Type{<:SimpleAddRoute}[RAW, SPCF]
+    s = buildSolution_FFD(instance, perm, Δ=Δ, TAG_FitSes=TAG_FitSes, TAG_AddRoute=TAG_AddRoute)
 end
 
 # ================================================================================= #
@@ -277,7 +270,7 @@ end
 # ================================================================================= #
 
 begin # Construction of solution using MILP
-    perm::Vector{Int64} = sortperm([(-fitness(r, Max), -fitness(r, NbBatches), -fitness(r, StdBatches)) for r in instance.rounds])
+    perm::Vector{Int64} = sortperm([(-fitness(r, Max), -fitness(r, NbBatches), -fitness(r, StdBatches)) for r in instance.route])
 
     s0::Solution = buildSolution_FFD_final(instance, perm, LoadSTD)
     model, sBest = model_01LP_warmstart(instance, s0, 20)
@@ -302,7 +295,7 @@ sol = MOI.get(model, Gurobi.ModelAttribute("ObjVal"))
 # ================================================================================= #
 
 begin # Construction of solution using MILP
-    s0::Solution = buildSolution_FFD(instanceS, sortedPerm(instanceS, Type{<:FitnessRound}[Max, NbBatches]))
+    s0::Solution = buildSolution_FFD(instanceS, sortedPerm(instanceS, Type{<:FitnessRoute}[Max, NbBatches]))
     display(s0)
 
     N = length(s0.sessions)
@@ -345,7 +338,7 @@ begin
     for i=1:100
         print(" - $i - ")
         instance::Instance, _ = parseAnyInstance("instanceDistribHard_$(i)_O100_R20_C100_opt_1.txt")
-        s = Session(instance.C, instance.rounds, compute_output(instance.rounds))
+        s = Session(instance.Lmax, instance.route, compute_output(instance.route))
 
         for id_δ1 = 1:length(all_δ1)
             for id_δ2 = 1:length(all_δ2)
@@ -416,7 +409,7 @@ begin
                         for (i, path) in all_path
                             print("-")
                             instance::Instance, _ = parseAnyInstance(path)
-                            perm::Vector{Int64} = sortperm([(-fitness(r, TAG1), -fitness(r, TAG2)) for r in instance.rounds]) # , -fitness(r, TAG3)
+                            perm::Vector{Int64} = sortperm([(-fitness(r, TAG1), -fitness(r, TAG2)) for r in instance.route]) # , -fitness(r, TAG3)
                             sol = buildSolution_FFD_final(instance, perm, 10, env)
 
                             (length(sol.sessions) == minSession(instance)) && (opti[i] += 1)
@@ -481,7 +474,7 @@ begin
     opt = 0
     for i=1:100
         instance, opti = parseAnyInstance("instanceGaussian_$(i)_O40_R200_C100_opt_10.txt")
-        md, res, nb_ses, perm = full_partitioning_01_KP(instance.rounds, 100, 20, tl_perm, env)
+        md, res, nb_ses, perm = full_partitioning_01_KP(instance.route, 100, 20, tl_perm, env)
         sol::Solution = buildSolution_BFD_final(instance, perm, tl_rebuild, env)
         length(sol.sessions) == opti ? (opt += 1, println("$(i) opti!")) : (println("$(i) end"))
     end
@@ -491,10 +484,10 @@ end
 instance, opti = parseAnyInstance("instanceGaussian_1_O200_R200_C100_opt_10.txt")
 instance, opti = parseAnyInstance("myTrafic_1_O20_R20.txt")
 
-tmp = filter(e -> !(e.id in [11, 27, 29, 40, 37, 9, 7, 14, 34, 19, 38, 35, 24, 28, 36, 23, 4, 18, 2]), instance.rounds)
-instanceS = Instance(instance.C, instance.nbOut, length(tmp), tmp)
+tmp = filter(e -> !(e.id in [11, 27, 29, 40, 37, 9, 7, 14, 34, 19, 38, 35, 24, 28, 36, 23, 4, 18, 2]), instance.route)
+instanceS = Instance(instance.Lmax, instance.nbOut, length(tmp), tmp)
 
-s = Session(instanceS.C, instanceS.rounds, compute_output(instanceS.rounds))
+s = Session(instanceS.Lmax, instanceS.route, compute_output(instanceS.route))
 s0, valid = rebuildSession_knapSack_model_V3!(s)
 
 sol = buildSolution_BF_final(instance)
@@ -504,7 +497,7 @@ R2, O2 = size(mat)
 s = Session(C, O2)
 for i=1:R2
     tmp = filter(x -> x != 0, mat[i, :])
-    push!(s.rounds, Round(i, mat[i, :], ntuple(i -> tmp[i], length(tmp))))
+    push!(s.route, Route(i, mat[i, :], ntuple(i -> tmp[i], length(tmp))))
 end
 compute_output!(s)
 count(x -> x != 0, mat)/(20)

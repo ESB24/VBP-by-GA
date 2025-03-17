@@ -1,6 +1,6 @@
 
 begin # Files
-    include("Round.jl")
+    include("Route.jl")
     include("Session.jl")
     include("DataStruct.jl")
     include("MyDistribution.jl")
@@ -11,12 +11,12 @@ end
 # ================================================== #
 
 function minSession(instance::Instance)::Int64
-    return max(ceil(Int64, instance.nbRound/instance.nbOut), ceil(Int64, sum([sum(r.batches) for r in instance.rounds]) / (instance.C * instance.nbOut)))
+    return max(ceil(Int64, instance.nbRoute/instance.nbOut), ceil(Int64, sum([sum(r.mail) for r in instance.route]) / (instance.Lmax * instance.nbOut)))
 end
 
 function rawInstance(instance::Instance)
-    for r in instance.rounds
-        rawRound(r) ? print("-") : print("x")
+    for r in instance.route
+        rawRoute(r) ? print("-") : print("x")
     end
 end
 
@@ -37,7 +37,7 @@ function Instance(mat::Matrix{Int64}, λ::Float64 = 0.25)
     # machine outputs capacity
     C::Int64 = ceil(max(vmax , Kmax))
 
-    return Instance(C, O, R, [Round(i, O, (filter(x -> x != 0, mat[i, :])..., )) for i=1:R])
+    return Instance(C, O, R, [Route(i, O, (filter(x -> x != 0, mat[i, :])..., )) for i=1:R])
 end
 
 # ================================================== #
@@ -45,22 +45,22 @@ end
 # ================================================== #
 
 function Base.show(io::IO, i::Instance)
-    print(io, "Instance:\n     C : $(i.C)\n    |O|: $(i.nbOut)\n    |R|: $(i.nbRound)\n     R :\n")
+    print(io, "Instance:\n     C : $(i.Lmax)\n    |O|: $(i.nbOut)\n    |R|: $(i.nbRoute)\n     R :\n")
 
-    for r in i.rounds
+    for r in i.route
         println(io, r)
     end
 end
 
 function printASCII(i::Instance)
-    print("Instance:\n     C : $(i.C)\n    |O|: $(i.nbOut)\n    |R|: $(i.nbRound)\n     R :\n")
-    for r::Round in i.rounds
+    print("Instance:\n     C : $(i.Lmax)\n    |O|: $(i.nbOut)\n    |R|: $(i.nbRoute)\n     R :\n")
+    for r::Route in i.route
         print("$(r.id): ")
         for b::Int64 in r.assignment
             if b == 0
                 print(".")
             else
-                if b <= i.C/5
+                if b <= i.Lmax/5
                     print("_")
                 else
                     print("|")
@@ -80,10 +80,10 @@ end
 # ================================================================================= #
 
 function compute_perm(instance::Instance, N::Int64, nb_sol::Int64 = 10, tl::Int64 = 60)
-    R = collect(1:instance.nbRound)
-    V = [sum(instance.rounds[r].batches) for r in R]
+    R = collect(1:instance.nbRoute)
+    V = [sum(instance.route[r].mail) for r in R]
     O = instance.nbOut
-    Lmax = instance.C
+    Lmax = instance.Lmax
     S = collect(1:N)
 
     # println("========\nR = $R\nB = $B\nV = $V\nJ = $J\nC = $C\nO = $O\n")
@@ -156,18 +156,18 @@ end
 # ================================================================================= #
 
 function createInstanceV1(
-        nbRound             ::Int64                         = 200                   ,   # number of round in the instance
+        nbRoute             ::Int64                         = 200                   ,   # number of round in the instance
         nbOutputs           ::Int64                         = 200                   ,   # number of outputs per round
         λ                   ::Float64                       = 0.25                  # parameter for the capacity of the outputs
     )::Instance
-    mat                     ::Matrix{Int64}                 = Matrix{Int64}(undef, nbRound, nbOutputs)
+    mat                     ::Matrix{Int64}                 = Matrix{Int64}(undef, nbRoute, nbOutputs)
 
     minBatchesNb            ::Int64                         = round(Int64, 2*nbOutputs/3)    # minimum number of batches per round
     maxBatchesNb            ::Int64                         = nbOutputs             # maximum number of batches per round
     BatchesSizeProba        ::Vector{Float64}               = [1. / convert(Float64, nbOutputs*1.5), 1. - (1. / convert(Float64, nbOutputs*1.5))]            # distribution of the batches size
     BatchesSizeInter        ::Vector{UnitRange{Int64}}      = [nbOutputs*3:round(Int64, nbOutputs*3.2), 1:round(Int64, nbOutputs/10)]          # size of the batches according to the distribution
 
-    for i=1:nbRound
+    for i=1:nbRoute
         nbBatches::Int64 = rand(minBatchesNb:maxBatchesNb)
         for j=1:nbOutputs
             if j <= nbBatches
@@ -182,11 +182,11 @@ function createInstanceV1(
 end
 
 function createInstanceV2(
-        nbRound             ::Int64                         = 200                   ,   # number of round in the instance
+        nbRoute             ::Int64                         = 200                   ,   # number of round in the instance
         nbOutputs           ::Int64                         = 200                   ,
         λ                   ::Float64                       = 0.25                     # number of outputs per round
     )::Instance
-    mat                     ::Matrix{Int64}                 = Matrix{Int64}(undef, nbRound, nbOutputs)
+    mat                     ::Matrix{Int64}                 = Matrix{Int64}(undef, nbRoute, nbOutputs)
 
     minBatchesNb            ::Int64                         = round(Int64, 2*nbOutputs/3)    # minimum number of batches per round
     maxBatchesNb            ::Int64                         = nbOutputs             # maximum number of batches per round
@@ -195,7 +195,7 @@ function createInstanceV2(
 
     nbBigBatches::Int64 = 3
 
-    for i=1:nbRound
+    for i=1:nbRoute
         nbBatches::Int64 = rand(minBatchesNb:maxBatchesNb)
 
         bigPos::Vector{Int64} = randperm(nbBatches)[1:nbBigBatches]
@@ -216,8 +216,8 @@ function createInstanceV2(
     return Instance(mat, λ)
 end
 
-function generateRounds_BigBatche(
-        nbRound         ::Int64             ,
+function generateRoutes_BigBatche(
+        nbRoute         ::Int64             ,
         smallBatches    ::UnitRange{Int64}  ,
         bigBatches      ::UnitRange{Int64}  ,
         amontBigBatches ::UnitRange{Int64}  ,
@@ -270,29 +270,29 @@ function generateRounds_BigBatche(
     end
 # ==========< Assign Batches >==========
     
-    roundAssignment::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRound]
-    roundBatchesNumber::Vector{Int64} = zeros(Int64, nbRound)
+    roundAssignment::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRoute]
+    roundBatchesNumber::Vector{Int64} = zeros(Int64, nbRoute)
 
     while nbBatches > 0
         pos = sortperm(batches, by= x -> length(x), rev=true)[1]
 
-        subRound::Vector{Int64} = [] # sub set of batches that can receave the current batch
+        subRoute::Vector{Int64} = [] # sub set of batches that can receave the current batch
         priority::Bool = false
         for (k, v) in enumerate(roundAssignment)
             if v[pos] == 0
                 if roundBatchesNumber[k] < minBatches
-                    priority || (priority = true; subRound = [])
-                    push!(subRound, k)    
+                    priority || (priority = true; subRoute = [])
+                    push!(subRoute, k)    
                 elseif !priority
-                    push!(subRound, k)
+                    push!(subRoute, k)
                 end
             end
         end
 
-        if !isempty(subRound)
-            shuffle!(subRound)
+        if !isempty(subRoute)
+            shuffle!(subRoute)
 
-            r = subRound[1]
+            r = subRoute[1]
 
             roundAssignment[r][pos] += popfirst!(batches[pos])
             roundBatchesNumber[r] += 1
@@ -300,7 +300,7 @@ function generateRounds_BigBatche(
         else
             assigned = false
             while !assigned
-                r = rand(1:nbRound)
+                r = rand(1:nbRoute)
                 if roundAssignment[r][pos] + batches[pos][1] <= Lmax
                     roundAssignment[r][pos] += popfirst!(batches[pos])
                     nbBatches -= 1
@@ -310,13 +310,13 @@ function generateRounds_BigBatche(
         end
     end
 
-# ==========< Build Rounds >==========
+# ==========< Build Routes >==========
 
-    rounds::Vector{Round} = []
-    for rid=1:nbRound
+    rounds::Vector{Route} = []
+    for rid=1:nbRoute
         roundBatches::Vector{Int64} = filter(x -> x != 0, roundAssignment[rid])
         Br::Int64 = length(roundBatches)
-        r::Round{Br} = Round(currentId, roundAssignment[rid], ntuple(i -> roundBatches[i], Br))
+        r::Route{Br} = Route(currentId, roundAssignment[rid], ntuple(i -> roundBatches[i], Br))
         push!(rounds, r)
         currentId += 1
     end
@@ -326,7 +326,7 @@ end
 
 function generateSolution_BigBatche(
         nbSession           ::Int64             ,
-        nbRound             ::Int64             ,
+        nbRoute             ::Int64             ,
         smallBatches        ::UnitRange{Int64}  ,
         bigBatches          ::UnitRange{Int64}  ,
         amontBigBatches     ::UnitRange{Int64}  ,
@@ -336,24 +336,24 @@ function generateSolution_BigBatche(
         O                   ::Int64             ,
     )
 
-    totalRounds             ::Int64 = 0
+    totalRoutes             ::Int64 = 0
     currentId               ::Int64 = 1
-    instanceRounds          ::Vector{Vector{Int64}} = []
+    instanceRoutes          ::Vector{Vector{Int64}} = []
     sol                     ::Solution = Solution([], [])
 
     for _=1:nbSession
-        rounds, currentId = generateRounds_BigBatche(nbRound, smallBatches, bigBatches, amontBigBatches, minBatches, maxBatches, Lmax, O, currentId)
-        totalRounds += length(rounds)
+        rounds, currentId = generateRoutes_BigBatche(nbRoute, smallBatches, bigBatches, amontBigBatches, minBatches, maxBatches, Lmax, O, currentId)
+        totalRoutes += length(rounds)
         
         push!(sol.sessions, Session(Lmax, rounds, compute_output(rounds)))
     end
 
     # shuffle indexes of each round
-    perm                    ::Vector{Int64} = randperm(totalRounds)
+    perm                    ::Vector{Int64} = randperm(totalRoutes)
     sol.permutation = perm
     i = 1
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             r.id = perm[i]
             i += 1
         end
@@ -364,18 +364,18 @@ end
 
 function writeSolution_BigBatche(path::String, sol::Solution, id::Int64 = 0)
     O::Int64 = length(sol.sessions[1].loads)
-    nbRounds::Int64 = sum([length(s.rounds) for s in sol.sessions])
-    Lmax::Int64 = sol.sessions[1].C
+    nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
+    Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
     
 
-    filename = "instanceBigBatche_$(id)_O$(O)_R$(nbRounds)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceBigBatche_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)
     fd = open("$(path)/$(filename)", "w+")
 
-    write(fd, "\n$O\n$nbRounds\n$Lmax\n$nbSession\n\n")
+    write(fd, "\n$O\n$nbRoutes\n$Lmax\n$nbSession\n\n")
 
     # for e in sol.permutation
     #     write(fd, "$(e), ")
@@ -383,7 +383,7 @@ function writeSolution_BigBatche(path::String, sol::Solution, id::Int64 = 0)
     # write(fd, "\n\n")
 
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             write(fd, "$(r.id): ")
 
             for a in r.assignment
@@ -392,7 +392,7 @@ function writeSolution_BigBatche(path::String, sol::Solution, id::Int64 = 0)
 
             write(fd, ": ")
 
-            for b in r.batches
+            for b in r.mail
                 write(fd, "$(b), ")
             end
             write(fd, "\n")
@@ -407,7 +407,7 @@ function writeInstanceBatterie_BigBatche(
         path                ::String            ,
         nbInstance          ::Int64             ,
         nbSession           ::Int64             ,
-        nbRound             ::Int64             ,
+        nbRoute             ::Int64             ,
         O                   ::Int64             ,
         Lmax                ::Int64             , 
         minBatches          ::Int64             ,
@@ -418,7 +418,7 @@ function writeInstanceBatterie_BigBatche(
     )
 
     for i=1:nbInstance
-        sol = generateSolution_BigBatche(nbSession, nbRound, smallBatches, bigBatches, amontBigBatches, minBatches, maxBatches, Lmax, O)
+        sol = generateSolution_BigBatche(nbSession, nbRoute, smallBatches, bigBatches, amontBigBatches, minBatches, maxBatches, Lmax, O)
         writeSolution_BigBatche(path, sol, i)
     end
 end
@@ -468,23 +468,23 @@ end
 #                   #     #     #  #     #    #        #######   ######             #
 # ================================================================================= #
 
-function generateRounds_Distrib_easy(R::Int64, O::Int64)
+function generateRoutes_Distrib_easy(R::Int64, O::Int64)
 
     distrib_sizeBatch   = distrib_trafic_batchSize(O)
     distrib_nbBatch     = distrib_trafic_batchCount(O)
 
-    rounds::Vector{Round} = Vector{Round}(undef, R)
+    rounds::Vector{Route} = Vector{Route}(undef, R)
 
     for i=1:R
         nbBatch = rand(distrib_nbBatch)
 
-        rounds[i] = Round(i, O, ntuple(i -> rand(distrib_sizeBatch), nbBatch))
+        rounds[i] = Route(i, O, ntuple(i -> rand(distrib_sizeBatch), nbBatch))
     end
 
     return rounds
 end
 
-function writeRounds_Distrib_easy(rounds::Vector{Round}, id::Int64 = 0)
+function writeRoutes_Distrib_easy(rounds::Vector{Route}, id::Int64 = 0)
     O::Int64 = length(rounds[1].assignment)
     R::Int64 = length(rounds)
 
@@ -509,7 +509,7 @@ function writeRounds_Distrib_easy(rounds::Vector{Round}, id::Int64 = 0)
 
         write(fd, ": ")
 
-        for b in r.batches
+        for b in r.mail
             write(fd, "$(b), ")
         end
         write(fd, "\n")
@@ -521,8 +521,8 @@ end
 
 function writeInstanceBatterie_Distrib_easy(nbInstance::Int64, R::Int64, O::Int64)
     for i=1:nbInstance
-        rounds = generateRounds_Distrib_easy(R, O)
-        writeRounds_Distrib_easy(rounds, i)
+        rounds = generateRoutes_Distrib_easy(R, O)
+        writeRoutes_Distrib_easy(rounds, i)
     end
 end
 
@@ -562,8 +562,8 @@ end
 #                           #     #  #     #  #     #  ######                       #
 # ================================================================================= #
 
-function generateRounds_Distrib(
-        nbRound         ::Int64             ,
+function generateRoutes_Distrib(
+        nbRoute         ::Int64             ,
         smallerBatches  ::Int64             ,
         biggestBatches  ::Int64             ,
         minBatches      ::Int64             ,
@@ -601,29 +601,29 @@ function generateRounds_Distrib(
 
 # ==========< Assign Batches >==========
 
-    roundAssignment::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRound]
-    roundBatchesNumber::Vector{Int64} = zeros(Int64, nbRound)
+    roundAssignment::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRoute]
+    roundBatchesNumber::Vector{Int64} = zeros(Int64, nbRoute)
 
     while nbBatches > 0
         pos = sortperm(batches, by= x -> length(x), rev=true)[1]
 
-        subRound::Vector{Int64} = [] # sub set of batches that can receave the current batch
+        subRoute::Vector{Int64} = [] # sub set of batches that can receave the current batch
         priority::Bool = false
         for (k, v) in enumerate(roundAssignment)
             if v[pos] == 0
                 if roundBatchesNumber[k] < minBatches
-                    priority || (priority = true; subRound = [])
-                    push!(subRound, k)    
+                    priority || (priority = true; subRoute = [])
+                    push!(subRoute, k)    
                 elseif !priority
-                    push!(subRound, k)
+                    push!(subRoute, k)
                 end
             end
         end
 
-        if !isempty(subRound)
-            shuffle!(subRound)
+        if !isempty(subRoute)
+            shuffle!(subRoute)
 
-            r = subRound[1]
+            r = subRoute[1]
 
             roundAssignment[r][pos] += popfirst!(batches[pos])
             roundBatchesNumber[r] += 1
@@ -631,7 +631,7 @@ function generateRounds_Distrib(
         else
             assigned = false
             while !assigned
-                r = rand(1:nbRound)
+                r = rand(1:nbRoute)
                 if roundAssignment[r][pos] + batches[pos][1] <= Lmax
                     roundAssignment[r][pos] += popfirst!(batches[pos])
                     nbBatches -= 1
@@ -641,13 +641,13 @@ function generateRounds_Distrib(
         end
     end
 
-# ==========< Build Rounds >==========
+# ==========< Build Routes >==========
 
-    rounds::Vector{Round} = []
-    for rid=1:nbRound
+    rounds::Vector{Route} = []
+    for rid=1:nbRoute
         roundBatches::Vector{Int64} = filter(x -> x != 0, roundAssignment[rid])
         Br::Int64 = length(roundBatches)
-        r::Round{Br} = Round(currentId, roundAssignment[rid], ntuple(i -> roundBatches[i], Br))
+        r::Route{Br} = Route(currentId, roundAssignment[rid], ntuple(i -> roundBatches[i], Br))
         push!(rounds, r)
         currentId += 1
     end
@@ -657,7 +657,7 @@ end
 
 function generateSolution_Distrib(
         nbSession       ::Int64             ,
-        nbRound         ::Int64             ,
+        nbRoute         ::Int64             ,
         smallerBatches  ::Int64             ,
         biggestBatches  ::Int64             ,
         minBatches      ::Int64             ,
@@ -667,24 +667,24 @@ function generateSolution_Distrib(
         fct_distrib     ::Function          ,
     )
 
-    totalRounds             ::Int64 = 0
+    totalRoutes             ::Int64 = 0
     currentId               ::Int64 = 1
-    instanceRounds          ::Vector{Vector{Int64}} = []
+    instanceRoutes          ::Vector{Vector{Int64}} = []
     sol                     ::Solution = Solution([], [])
 
     for _=1:nbSession
-        rounds, currentId = generateRounds_Distrib(nbRound, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, currentId, fct_distrib)
-        totalRounds += length(rounds)
+        rounds, currentId = generateRoutes_Distrib(nbRoute, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, currentId, fct_distrib)
+        totalRoutes += length(rounds)
         
         push!(sol.sessions, Session(Lmax, rounds, compute_output(rounds)))
     end
 
     # shuffle indexes of each round
-    perm                    ::Vector{Int64} = randperm(totalRounds)
+    perm                    ::Vector{Int64} = randperm(totalRoutes)
     sol.permutation = perm
     i = 1
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             r.id = perm[i]
             i += 1
         end
@@ -695,18 +695,18 @@ end
 
 function writeSolution_Distrib(path::String, sol::Solution, id::Int64 = 0)
     O::Int64 = length(sol.sessions[1].loads)
-    nbRounds::Int64 = sum([length(s.rounds) for s in sol.sessions])
-    Lmax::Int64 = sol.sessions[1].C
+    nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
+    Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
 
 
-    filename = "instanceDistribHard_$(id)_O$(O)_R$(nbRounds)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceDistribHard_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)
     fd = open("$(path)/$(filename)", "w+")
 
-    write(fd, "\n$O\n$nbRounds\n$Lmax\n$nbSession\n\n")
+    write(fd, "\n$O\n$nbRoutes\n$Lmax\n$nbSession\n\n")
 
     # for e in sol.permutation
     #     write(fd, "$(e), ")
@@ -714,7 +714,7 @@ function writeSolution_Distrib(path::String, sol::Solution, id::Int64 = 0)
     # write(fd, "\n\n")
 
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             write(fd, "$(r.id): ")
 
             for a in r.assignment
@@ -723,7 +723,7 @@ function writeSolution_Distrib(path::String, sol::Solution, id::Int64 = 0)
 
             write(fd, ": ")
 
-            for b in r.batches
+            for b in r.mail
                 write(fd, "$(b), ")
             end
             write(fd, "\n")
@@ -738,7 +738,7 @@ function writeInstanceBatterie_Distrib(
         path            ::String            ,
         nbInstance      ::Int64             ,
         nbSession       ::Int64             ,
-        nbRound         ::Int64             ,
+        nbRoute         ::Int64             ,
         O               ::Int64             ,
         Lmax            ::Int64             , 
         minBatches      ::Int64             ,
@@ -749,7 +749,7 @@ function writeInstanceBatterie_Distrib(
     )
 
     for i=1:nbInstance
-        sol = generateSolution_Distrib(nbSession, nbRound, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, fct_distrib)
+        sol = generateSolution_Distrib(nbSession, nbRoute, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, fct_distrib)
         writeSolution_Distrib(path, sol, i)
     end
 end
@@ -762,8 +762,8 @@ end
 #                           #     #  #     #  #     #  ######                       #
 # ================================================================================= #
 
-function generateRounds_Distrib_V2(
-        nbRound         ::Int64             ,
+function generateRoutes_Distrib_V2(
+        nbRoute         ::Int64             ,
         smallerBatches  ::Int64             ,
         biggestBatches  ::Int64             ,
         minBatches      ::Int64             ,
@@ -805,11 +805,11 @@ function generateRounds_Distrib_V2(
     distribNumber = fct_distribNumber((maxBatches+1) - minBatches)
     batcheNumber = [minBatches + i for i=0:(maxBatches - minBatches)]
 
-    roundAssignment::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRound]
-    roundBatchesNumber::Vector{Int64} = [batcheNumber[rand(distribNumber)] for _=1:nbRound]
+    roundAssignment::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRoute]
+    roundBatchesNumber::Vector{Int64} = [batcheNumber[rand(distribNumber)] for _=1:nbRoute]
 
     while sum(roundBatchesNumber) > nbBatches
-        pos = rand(1:nbRound)
+        pos = rand(1:nbRoute)
 
         if (roundBatchesNumber[pos] > minBatches) || (maximum(roundBatchesNumber) <= minBatches)
             roundBatchesNumber[pos] -= 1
@@ -817,14 +817,14 @@ function generateRounds_Distrib_V2(
     end
 
     while sum(roundBatchesNumber) < nbBatches
-        pos = rand(1:nbRound)
+        pos = rand(1:nbRoute)
 
         if (roundBatchesNumber[pos] < maxBatches) || (minimum(roundBatchesNumber) >= maxBatches)
             roundBatchesNumber[pos] += 1
         end
     end
 
-    for r=1:nbRound
+    for r=1:nbRoute
         outputs = randperm(O)
         assigned = 0
 
@@ -842,17 +842,17 @@ function generateRounds_Distrib_V2(
 
     for k=1:O
         while !isempty(batches[k])
-            roundAssignment[rand(1:nbRound)][k] += popfirst!(batches[k])
+            roundAssignment[rand(1:nbRoute)][k] += popfirst!(batches[k])
         end
     end
 
-# ==========< Build Rounds >==========
+# ==========< Build Routes >==========
 
-    rounds::Vector{Round} = []
-    for rid=1:nbRound
+    rounds::Vector{Route} = []
+    for rid=1:nbRoute
         roundBatches::Vector{Int64} = filter(x -> x != 0, roundAssignment[rid])
         Br::Int64 = length(roundBatches)
-        r::Round{Br} = Round(currentId, roundAssignment[rid], ntuple(i -> roundBatches[i], Br))
+        r::Route{Br} = Route(currentId, roundAssignment[rid], ntuple(i -> roundBatches[i], Br))
         push!(rounds, r)
         currentId += 1
     end
@@ -862,7 +862,7 @@ end
 
 function generateSolution_Distrib_V2(
         nbSession       ::Int64             ,
-        nbRound         ::Int64             ,
+        nbRoute         ::Int64             ,
         smallerBatches  ::Int64             ,
         biggestBatches  ::Int64             ,
         minBatches      ::Int64             ,
@@ -873,24 +873,24 @@ function generateSolution_Distrib_V2(
         fct_distribNumber::Function         ,
     )
 
-    totalRounds             ::Int64 = 0
+    totalRoutes             ::Int64 = 0
     currentId               ::Int64 = 1
-    instanceRounds          ::Vector{Vector{Int64}} = []
+    instanceRoutes          ::Vector{Vector{Int64}} = []
     sol                     ::Solution = Solution([], [])
 
     for _=1:nbSession
-        rounds, currentId = generateRounds_Distrib_V2(nbRound, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, currentId, fct_distrib, fct_distribNumber)
-        totalRounds += length(rounds)
+        rounds, currentId = generateRoutes_Distrib_V2(nbRoute, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, currentId, fct_distrib, fct_distribNumber)
+        totalRoutes += length(rounds)
         
         push!(sol.sessions, Session(Lmax, rounds, compute_output(rounds)))
     end
 
     # shuffle indexes of each round
-    perm                    ::Vector{Int64} = randperm(totalRounds)
+    perm                    ::Vector{Int64} = randperm(totalRoutes)
     sol.permutation = perm
     i = 1
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             r.id = perm[i]
             i += 1
         end
@@ -901,18 +901,18 @@ end
 
 function writeSolution_Distrib_V2(path::String, sol::Solution, id::Int64 = 0)
     O::Int64 = length(sol.sessions[1].loads)
-    nbRounds::Int64 = sum([length(s.rounds) for s in sol.sessions])
-    Lmax::Int64 = sol.sessions[1].C
+    nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
+    Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
 
 
-    filename = "instanceDistribV2_$(id)_O$(O)_R$(nbRounds)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceDistribV2_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)
     fd = open("$(path)/$(filename)", "w+")
 
-    write(fd, "\n$O\n$nbRounds\n$Lmax\n$nbSession\n\n")
+    write(fd, "\n$O\n$nbRoutes\n$Lmax\n$nbSession\n\n")
 
     # for e in sol.permutation
     #     write(fd, "$(e), ")
@@ -920,7 +920,7 @@ function writeSolution_Distrib_V2(path::String, sol::Solution, id::Int64 = 0)
     # write(fd, "\n\n")
 
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             write(fd, "$(r.id): ")
 
             for a in r.assignment
@@ -929,7 +929,7 @@ function writeSolution_Distrib_V2(path::String, sol::Solution, id::Int64 = 0)
 
             write(fd, ": ")
 
-            for b in r.batches
+            for b in r.mail
                 write(fd, "$(b), ")
             end
             write(fd, "\n")
@@ -944,7 +944,7 @@ function writeInstanceBatterie_Distrib_V2(
         path            ::String            ,
         nbInstance      ::Int64             ,
         nbSession       ::Int64             ,
-        nbRound         ::Int64             ,
+        nbRoute         ::Int64             ,
         O               ::Int64             ,
         Lmax            ::Int64             , 
         minBatches      ::Int64             ,
@@ -956,7 +956,7 @@ function writeInstanceBatterie_Distrib_V2(
     )
 
     for i=1:nbInstance
-        sol = generateSolution_Distrib_V2(nbSession, nbRound, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, fct_distrib, fct_distribNumber)
+        sol = generateSolution_Distrib_V2(nbSession, nbRoute, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, fct_distrib, fct_distribNumber)
         writeSolution_Distrib(path, sol, i)
     end
 end
@@ -1050,8 +1050,8 @@ function plotGaussianMatrix(O::Int64 = 40, nbPlots::Int64 = 5, rangeNbGaussian::
     end
 end
 
-function generateRounds_Gaussian(
-        nbRound         ::Int64             ,
+function generateRoutes_Gaussian(
+        nbRoute         ::Int64             ,
         minVolume       ::Int64             ,
         minBatches      ::Int64             ,
         maxBatches      ::Int64             ,
@@ -1084,13 +1084,13 @@ function generateRounds_Gaussian(
     end
 
 # ==========< Assign Batches >==========
-    roundBatches::Vector{Vector{Int64}} = [[] for _=1:nbRound]
-    roundAssignments::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRound]
+    roundBatches::Vector{Vector{Int64}} = [[] for _=1:nbRoute]
+    roundAssignments::Vector{Vector{Int64}} = [zeros(Int64, O) for _=1:nbRoute]
 
     batchesId::Vector{Int64} = randperm(length(batches))
 
     # assign minBatches batches to each rounds
-    for i=1:nbRound
+    for i=1:nbRoute
         while length(roundBatches[i]) < minBatches
             id = popfirst!(batchesId)
 
@@ -1105,10 +1105,10 @@ function generateRounds_Gaussian(
     end
 
     # assign up to maxBatches batches to each rounds
-    nonFullRounds = collect(1:nbRound)
+    nonFullRoutes = collect(1:nbRoute)
     while !isempty(batchesId)
         bid = popfirst!(batchesId) # batch id
-        rid = rand(nonFullRounds)  # round id
+        rid = rand(nonFullRoutes)  # round id
 
         pos = round(Int64, 1+floor((bid-1)/(nbPlots+1)))
         if roundAssignments[rid][pos] != 0
@@ -1117,16 +1117,16 @@ function generateRounds_Gaussian(
             roundAssignments[rid][pos] = batches[bid]
             push!(roundBatches[rid], bid)
 
-            (length(roundBatches[rid]) >= maxBatches) && (filter!(x -> x != rid, nonFullRounds))
+            (length(roundBatches[rid]) >= maxBatches) && (filter!(x -> x != rid, nonFullRoutes))
         end
     end
 
-# ==========< Build Rounds >==========
-    rounds::Vector{Round} = []
-    for rid=1:nbRound
+# ==========< Build Routes >==========
+    rounds::Vector{Route} = []
+    for rid=1:nbRoute
         Br::Int64 = length(roundBatches[rid])
         sort!(roundBatches[rid])
-        r::Round{Br} = Round(currentId, roundAssignments[rid], ntuple(i -> batches[roundBatches[rid][i]], Br))
+        r::Route{Br} = Route(currentId, roundAssignments[rid], ntuple(i -> batches[roundBatches[rid][i]], Br))
         push!(rounds, r)
         currentId += 1
     end
@@ -1134,7 +1134,7 @@ function generateRounds_Gaussian(
     return (rounds, currentId)
 end
 
-# tmp, _ = generateRounds_Gaussian(30, 2, 8, 16:20, 50, 20, 1)
+# tmp, _ = generateRoutes_Gaussian(30, 2, 8, 16:20, 50, 20, 1)
 
 # for e in tmp
 #     println(e)                                                                                                                                                                                   
@@ -1152,25 +1152,25 @@ function generateSolution_Gaussian(
         nbGaussian          ::UnitRange{Int64} = 16:20,
     )
 
-    totalRounds             ::Int64 = 0
+    totalRoutes             ::Int64 = 0
     currentId               ::Int64 = 1
-    instanceRounds          ::Vector{Vector{Int64}} = []
+    instanceRoutes          ::Vector{Vector{Int64}} = []
     sol                     ::Solution = Solution([], [])
 
     for _=1:nbSession
-        rounds, currentId = generateRounds_Gaussian(roundPerSession, minVolume, minBatches, maxBatches, nbPlots, nbGaussian, Lmax, O, currentId)
-        totalRounds += length(rounds)
+        rounds, currentId = generateRoutes_Gaussian(roundPerSession, minVolume, minBatches, maxBatches, nbPlots, nbGaussian, Lmax, O, currentId)
+        totalRoutes += length(rounds)
         
         push!(sol.sessions, Session(Lmax, rounds, compute_output(rounds)))
     end
 
-    perm                    ::Vector{Int64} = randperm(totalRounds)
+    perm                    ::Vector{Int64} = randperm(totalRoutes)
 
     sol.permutation = perm
 
     i = 1
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             r.id = perm[i]
             i += 1
         end
@@ -1181,18 +1181,18 @@ end
 
 function writeSolution_Gaussian(path::String, sol::Solution, id::Int64 = 0)
     O::Int64 = length(sol.sessions[1].loads)
-    nbRounds::Int64 = sum([length(s.rounds) for s in sol.sessions])
-    Lmax::Int64 = sol.sessions[1].C
+    nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
+    Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
     
 
-    filename = "instanceGaussian_$(id)_O$(O)_R$(nbRounds)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceGaussian_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)
     fd = open("$(path)/$(filename)", "w+")
 
-    write(fd, "\n$O\n$nbRounds\n$Lmax\n$nbSession\n\n")
+    write(fd, "\n$O\n$nbRoutes\n$Lmax\n$nbSession\n\n")
 
     # for e in sol.permutation
     #     write(fd, "$(e), ")
@@ -1200,7 +1200,7 @@ function writeSolution_Gaussian(path::String, sol::Solution, id::Int64 = 0)
     # write(fd, "\n\n")
 
     for s in sol.sessions
-        for r in s.rounds
+        for r in s.route
             write(fd, "$(r.id): ")
 
             for a in r.assignment
@@ -1209,7 +1209,7 @@ function writeSolution_Gaussian(path::String, sol::Solution, id::Int64 = 0)
 
             write(fd, ": ")
 
-            for b in r.batches
+            for b in r.mail
                 write(fd, "$(b), ")
             end
             write(fd, "\n")
@@ -1224,7 +1224,7 @@ function writeInstanceBatterie_Gaussian(
         path                ::String,
         nbInstance          ::Int64,
         nbSession           ::Int64,
-        nbRound             ::Int64,
+        nbRoute             ::Int64,
         O                   ::Int64,
         Lmax                ::Int64,
         minBatches          ::Int64,
@@ -1235,7 +1235,7 @@ function writeInstanceBatterie_Gaussian(
     )
 
     for i=1:nbInstance
-        sol = generateSolution_Gaussian(nbSession, O, Lmax, nbRound, minBatches, maxBatches, minVolume, nbPlots, nbGaussian)
+        sol = generateSolution_Gaussian(nbSession, O, Lmax, nbRoute, minBatches, maxBatches, minVolume, nbPlots, nbGaussian)
         writeSolution_Gaussian(path, sol, i)
     end
 end
@@ -1250,15 +1250,15 @@ function parseMyInstance(path::String)
     _ = readline(fd) # ""
 
     O::Int64 = parse(Int64, readline(fd))
-    nbRounds::Int64 = parse(Int64, readline(fd))
+    nbRoutes::Int64 = parse(Int64, readline(fd))
     Lmax::Int64 = parse(Int64, readline(fd))
     nbSession::Int64 = parse(Int64, readline(fd))
 
     _ = readline(fd) # ""
 
-    mat::Matrix{Int64} = zeros(Int64, nbRounds, O)
+    mat::Matrix{Int64} = zeros(Int64, nbRoutes, O)
 
-    for i=1:nbRounds
+    for i=1:nbRoutes
         # eat each empty line
         line = readline(fd)
         while line == ""
@@ -1284,15 +1284,15 @@ function parseMyInstance_completed(path::String)
     _ = readline(fd) # ""
 
     O::Int64 = parse(Int64, readline(fd))
-    nbRounds::Int64 = parse(Int64, readline(fd))
+    nbRoutes::Int64 = parse(Int64, readline(fd))
     Lmax::Int64 = parse(Int64, readline(fd))
     nbSession::Int64 = parse(Int64, readline(fd))
 
     _ = readline(fd) # ""
 
-    mat::Matrix{Int64} = zeros(Int64, nbRounds, O)
+    mat::Matrix{Int64} = zeros(Int64, nbRoutes, O)
 
-    for i=1:nbRounds
+    for i=1:nbRoutes
         # eat each empty line
         line = readline(fd)
         while line == ""
@@ -1324,7 +1324,7 @@ function parseOptiInstance(path::String)
     
     file = open(path,"r")
     numberOfOutputs = parse(Int64, readline(file))
-    numberOfRounds = parse(Int64, readline(file))
+    numberOfRoutes = parse(Int64, readline(file))
     numberOfSessions = parse(Int64, readline(file))
     Lmax = parse(Int64, readline(file))
     LmaxLastBin = parse(Int64, readline(file))
@@ -1348,7 +1348,7 @@ function parseOptiInstance(path::String)
         println()
     end
 
-    return numberOfOutputs, numberOfRounds, numberOfSessions, sessions, Lmax
+    return numberOfOutputs, numberOfRoutes, numberOfSessions, sessions, Lmax
 end
 
 function normalizeOptiInstance(sessions::Vector)
@@ -1417,7 +1417,7 @@ function countCat(c, n::Int64)
 end
 
 function generateHardInstance(Lmax::Int64, n_outputs::Int64, d_batchNumbers::Categorical, d_batchPositions::Categorical, d_batchValue::Categorical)
-    sessionRounds = Vector{Vector{Int64}}(undef,0)
+    sessionRoutes = Vector{Vector{Int64}}(undef,0)
     a = [Lmax for i in 1:n_outputs]
 
     roundNumber = 1
@@ -1448,12 +1448,12 @@ function generateHardInstance(Lmax::Int64, n_outputs::Int64, d_batchNumbers::Cat
             a[position] -= value # Update the aggregate vector
         end
 
-        push!(sessionRounds, round)
+        push!(sessionRoutes, round)
 
         roundNumber += 1
     end
 
-    return sessionRounds
+    return sessionRoutes
 end
 
 function vect2D_to_matrix(v)
@@ -1580,8 +1580,8 @@ end
 function generateInstances(path::String, numberOfInstances::Int64, numberOfBins::Int64, numberOfOutputs::Int64, Lmax::Int64, LmaxLastBin::Int64)
     for instanceNumber in 1:numberOfInstances
         bins = generateBins(numberOfBins, numberOfOutputs, Lmax, LmaxLastBin)
-        numberOfRounds = sum([length(bin) for bin in bins])
-        filename = "instance_" * string(instanceNumber) * "_" * string(numberOfOutputs) * "_" * string(numberOfRounds) * "_opt_" * string(numberOfBins) * "_" * string(Lmax) * "_" * string(LmaxLastBin) * ".txt"
+        numberOfRoutes = sum([length(bin) for bin in bins])
+        filename = "instance_" * string(instanceNumber) * "_" * string(numberOfOutputs) * "_" * string(numberOfRoutes) * "_opt_" * string(numberOfBins) * "_" * string(Lmax) * "_" * string(LmaxLastBin) * ".txt"
         
         # Create file
         println("instance generated : "*filename)
@@ -1589,7 +1589,7 @@ function generateInstances(path::String, numberOfInstances::Int64, numberOfBins:
         
         # Instance infos
         write(file, string(numberOfOutputs)*"\n")
-        write(file, string(numberOfRounds)*"\n")
+        write(file, string(numberOfRoutes)*"\n")
         write(file, string(numberOfBins)*"\n")
         write(file, string(Lmax)*"\n")
         write(file, string(LmaxLastBin)*"\n")

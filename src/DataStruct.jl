@@ -2,16 +2,16 @@
 #                        Core                        #
 # ================================================== #
 
-mutable struct Round{N}
-    id              ::Int64                     # ID of the round
-    assignment      ::Vector{Int64}             # each batches places on the outputs
-    batches         ::NTuple{N, Int64}          # list all batches in the Round
+mutable struct Route{N}
+    id              ::Int64                     # ID of the route
+    assignment      ::Vector{Int64}             # mails positionned on the outputs
+    mail            ::NTuple{N, Int64}          # list all mails in the Route
 end
 
 mutable struct Session
-    C               ::Int64                     # Capacity of each outputs
-    rounds          ::Vector{Round}             # Round containe in the solution (letter well placed)
-    loads           ::Vector{Int64}             # curent state of the outputs
+    Lmax            ::Int64                     # Maximum output Load
+    route           ::Vector{Route}             # Route currently in the solution
+    load            ::Vector{Int64}             # Current output loads
 end
 
 mutable struct Solution
@@ -20,15 +20,22 @@ mutable struct Solution
 end
 
 mutable struct Instance
-    C               ::Int64                     # capacity of the bin (Lmax)
+    Lmax            ::Int64                     # capacity of the bin (Lmax)
     nbOut           ::Int64                     # number of outputs of the machine |O|
-    nbRound         ::Int64                     # number of route in the instance |R|
-    rounds          ::Vector{Round}             # set of route
+    nbRoute         ::Int64                     # number of route in the instance |R|
+    route           ::Vector{Route}             # set of route
 end
 
 # ================================================== #
 #                         GA                         #
 # ================================================== #
+
+call = 0
+repairedBuild = 0
+improvedOverAll = 0
+locked = 0
+delta1 = 0.2
+delta2 = 0.9
 
 mutable struct GenVal
     elite           ::Vector{Float64}           # best 20% of previous population or created by FFD in G0 

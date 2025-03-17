@@ -1,7 +1,7 @@
 begin
     # data structures
     include("DataStruct.jl")
-    include("Round.jl")
+    include("Route.jl")
     include("Session.jl")
     include("Solution.jl")
     include("Instance.jl")
@@ -183,61 +183,61 @@ end
 
 function crossOver(instance::Instance, p1::Solution, p2::Solution, ::Type{Edit}, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, env::Gurobi.Env=Gurobi.Env())
     
-    son::Solution = Solution(deepcopy(p1.permutation), [Session(s.C, [Round(r.id, deepcopy(r.assignment), r.batches) for r in s.rounds], deepcopy(s.loads)) for s in p1.sessions])
+    son::Solution = Solution(deepcopy(p1.permutation), [Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.loads)) for s in p1.sessions])
 
-    removedRound::Vector{Int64} = [e.id for e in p1.sessions[end].rounds]
+    removedRoute::Vector{Int64} = [e.id for e in p1.sessions[end].route]
 
     nonFullSession::Vector{Int64} = [i for (i, s) in enumerate(son.sessions[1:end-1]) if (fitness(s, HollowedPercentage) >= 1)]
 
     emptySession::Vector{Int64} = [length(son.sessions)]
 
-    nbRemovedRound::Int64 = 0
+    nbRemovedRoute::Int64 = 0
 
-    while nbRemovedRound <= round(Int64, instance.nbRound/4) && length(emptySession) < length(nonFullSession)
+    while nbRemovedRoute <= round(Int64, instance.nbRoute/4) && length(emptySession) < length(nonFullSession)
         sId::Int64 = rand(nonFullSession)
         s::Session = son.sessions[sId]
 
-        if !isempty(s.rounds)
-            r = rand(s.rounds)
+        if !isempty(s.route)
+            r = rand(s.route)
 
-            filter!(e -> e.id != r.id, son.sessions[sId].rounds)
+            filter!(e -> e.id != r.id, son.sessions[sId].route)
             filter!(e -> e != r.id, son.permutation)
 
-            push!(removedRound, r.id)
+            push!(removedRoute, r.id)
 
             # println("r = $(r.id), ")
 
-            if isempty(s.rounds)
+            if isempty(s.route)
                 push!(emptySession, sId) 
             end
 
-            nbRemovedRound += 1
+            nbRemovedRoute += 1
         end
     end
 
     for s in son.sessions
-        isempty(s.rounds) ? s.loads == zeros(Int64, length(s.loads)) : compute_output!(s)
+        isempty(s.route) ? s.loads == zeros(Int64, length(s.loads)) : compute_output!(s)
     end
     son.sessions = son.sessions[1:end-1]
     filter!(e -> sum(e.loads) != 0, son.sessions)
     
     # round id to add 
-    addOrder::Vector{Int64} = filter(e -> e in removedRound, p2.permutation)
-    filter!(e-> !(e in removedRound), son.permutation)
+    addOrder::Vector{Int64} = filter(e -> e in removedRoute, p2.permutation)
+    filter!(e-> !(e in removedRoute), son.permutation)
     son.permutation = [son.permutation; addOrder]
 
     # for r in addOrder
-    #     son = InsertRound_Procedure!(instance, son, r, TAG_FitSes, env)
+    #     son = InsertRoute_Procedure!(instance, son, r, TAG_FitSes, env)
     # end
 
     for roundId in addOrder
-        r::Round = instance.rounds[roundId]
+        r::Route = instance.route[roundId]
         # println("new order -> $(sortperm(sol.sessions, by=x -> (100 - fitness(x, HollowedPercentage))))")
         sort!(son.sessions, by=x -> (fitness(x, HollowedPercentage)))
-        son = InsertRound_Procedure!(son, r, 10, env)
+        son = InsertRoute_Procedure!(son, r, 10, env)
     end
 
-    # println("removedRound -> $(removedRound)")
+    # println("removedRoute -> $(removedRoute)")
     # println("addOrder -> $(addOrder)")
 
     return son
@@ -282,61 +282,61 @@ end
 
 # same as OnePoint Cross-Over but with Edit Cross-Over
 function crossOver_edit(instance::Instance, p1::Solution, p2::Solution, tl::Int64 = 10, env::Gurobi.Env = Gurobi.Env())
-    son::Solution = Solution(deepcopy(p1.permutation), [Session(s.C, [Round(r.id, deepcopy(r.assignment), r.batches) for r in s.rounds], deepcopy(s.loads)) for s in p1.sessions])
+    son::Solution = Solution(deepcopy(p1.permutation), [Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.loads)) for s in p1.sessions])
 
-    removedRound::Vector{Int64} = [e.id for e in p1.sessions[end].rounds]
+    removedRoute::Vector{Int64} = [e.id for e in p1.sessions[end].route]
 
     nonFullSession::Vector{Int64} = [i for (i, s) in enumerate(son.sessions[1:end-1]) if (fitness(s, HollowedPercentage) >= 1)]
 
     emptySession::Vector{Int64} = [length(son.sessions)]
 
-    nbRemovedRound::Int64 = 0
+    nbRemovedRoute::Int64 = 0
 
-    while nbRemovedRound <= round(Int64, instance.nbRound/4) && length(emptySession) < length(nonFullSession)
+    while nbRemovedRoute <= round(Int64, instance.nbRoute/4) && length(emptySession) < length(nonFullSession)
         sId::Int64 = rand(nonFullSession)
         s::Session = son.sessions[sId]
 
-        if !isempty(s.rounds)
-            r = rand(s.rounds)
+        if !isempty(s.route)
+            r = rand(s.route)
 
-            filter!(e -> e.id != r.id, son.sessions[sId].rounds)
+            filter!(e -> e.id != r.id, son.sessions[sId].route)
             filter!(e -> e != r.id, son.permutation)
 
-            push!(removedRound, r.id)
+            push!(removedRoute, r.id)
 
             # println("r = $(r.id), ")
 
-            if isempty(s.rounds)
+            if isempty(s.route)
                 push!(emptySession, sId) 
             end
 
-            nbRemovedRound += 1
+            nbRemovedRoute += 1
         end
     end
 
     for s in son.sessions
-        isempty(s.rounds) ? s.loads == zeros(Int64, length(s.loads)) : compute_output!(s)
+        isempty(s.route) ? s.loads == zeros(Int64, length(s.loads)) : compute_output!(s)
     end
     son.sessions = son.sessions[1:end-1]
     filter!(e -> sum(e.loads) != 0, son.sessions)
     
     # round id to add 
-    addOrder::Vector{Int64} = filter(e -> e in removedRound, p2.permutation)
-    filter!(e-> !(e in removedRound), son.permutation)
+    addOrder::Vector{Int64} = filter(e -> e in removedRoute, p2.permutation)
+    filter!(e-> !(e in removedRoute), son.permutation)
     son.permutation = [son.permutation; addOrder]
 
     # for r in addOrder
-    #     son = InsertRound_Procedure!(instance, son, r, TAG_FitSes, env)
+    #     son = InsertRoute_Procedure!(instance, son, r, TAG_FitSes, env)
     # end
 
     for roundId in addOrder
-        r::Round = instance.rounds[roundId]
+        r::Route = instance.route[roundId]
         # println("new order -> $(sortperm(sol.sessions, by=x -> (100 - fitness(x, HollowedPercentage))))")
         sort!(son.sessions, by=x -> (fitness(x, HollowedPercentage)))
-        son = InsertRound_Procedure!(son, r, 10, env)
+        son = InsertRoute_Procedure!(son, r, 10, env)
     end
 
-    # println("removedRound -> $(removedRound)")
+    # println("removedRoute -> $(removedRoute)")
     # println("addOrder -> $(addOrder)")
 
     return son
@@ -360,7 +360,7 @@ function GA(
     println("                            > Genetic Algorithm ")
     println("================================================================================")
 
-    R::Int64 = instance.nbRound
+    R::Int64 = instance.nbRoute
     O::Int64 = instance.nbOut
 
     max_pop::Int64 = max(R, 50)
@@ -412,7 +412,7 @@ function GA(
             print("\n\n <> Generation $(gen.id):\n     - FFD: (x$(length(all_sort_crit)+1))\n        ")
 
             Tags         = all_sort_crit[length(gen.pop)+1]                                                     # get sorting criteria tags (for FFD)
-            perm         = sortperm([(-fitness(r, Tags[1]), -fitness(r, Tags[2])) for r in instance.rounds])    # compute used permutation (according to sorting criteria)
+            perm         = sortperm([(-fitness(r, Tags[1]), -fitness(r, Tags[2])) for r in instance.route])    # compute used permutation (according to sorting criteria)
             
             sol  = buildSolution_BFD_final(instance, perm, tl, env)   # compute solution usinf FFD heuristic
             val  = fitness(sol, TAG_FitGA)                            # compute objective value
@@ -427,7 +427,7 @@ function GA(
 
             if !flag_opti && !flag_tl
                 Tags         = all_sort_crit[length(gen.pop)+1]                                                     # get sorting criteria tags (for FFD)
-                _, _, tmp_bound, perm = full_partitioning_01_KP(instance.rounds, instance.C, length(sol.sessions), tl_perm, env)   # compute used permutation (according to sorting criteria)
+                _, _, tmp_bound, perm = full_partitioning_01_KP(instance.route, instance.Lmax, length(sol.sessions), tl_perm, env)   # compute used permutation (according to sorting criteria)
 
                 (tmp_bound != nothing) && (opti_sol = max(opti_sol, tmp_bound))
                 (length(sol.sessions) <= opti_sol) && (return sol, true, gen_val, time() - start_time)
@@ -446,7 +446,7 @@ function GA(
 
             while length(gen.pop)+1 < length(all_sort_crit) && !flag_opti && !flag_tl
                 Tags    = all_sort_crit[length(gen.pop)]                                                     # get sorting criteria tags (for FFD)
-                perm    = sortperm([(-fitness(r, Tags[1]), -fitness(r, Tags[2])) for r in instance.rounds])    # compute used permutation (according to sorting criteria)
+                perm    = sortperm([(-fitness(r, Tags[1]), -fitness(r, Tags[2])) for r in instance.route])    # compute used permutation (according to sorting criteria)
                 
                 sol     =  buildSolution_BF_final(instance, tl, env)                # buildSolution_BFD_final(instance, perm, tl, env)   # compute solution usinf FFD heuristic
                 val     = fitness(sol, TAG_FitGA)                                   # compute objective value
@@ -571,7 +571,7 @@ function GA_V2(
     println("                            > Genetic Algirithm ")
     println("================================================================================")
 
-    R::Int64 = instance.nbRound
+    R::Int64 = instance.nbRoute
     O::Int64 = instance.nbOut
 
     max_pop::Int64 = R
@@ -610,17 +610,17 @@ function GA_V2(
         end
     end
 
-    # ====================< GEN LOOP >====================
+# ====================< GEN LOOP >====================
 
     while (gen.id <= max_gen) && !flag_opti && !flag_tl && !flag_improv
 
-    # ====================< Initial Population/ Elite selection >====================
+# ====================< Initial Population/ Elite selection >====================
 
         if gen.id == 0 
             print("\n\n <> Generation $(gen.id):\n     - FFD: (x$(length(all_sort_crit)))\n        ")
             while length(gen.pop) < length(all_sort_crit) && !flag_opti && !flag_tl
                 Tags ::Tuple         = all_sort_crit[length(gen.pop)+1]                                                     # get sorting criteria tags (for FFD)
-                perm ::Vector{Int64} = sortperm([(-fitness(r, Tags[1]), -fitness(r, Tags[2])) for r in instance.rounds])    # compute used permutation (according to sorting criteria)
+                perm ::Vector{Int64} = sortperm([(-fitness(r, Tags[1]), -fitness(r, Tags[2])) for r in instance.route])    # compute used permutation (according to sorting criteria)
                 
                 sol ::Solution = buildSolution_FFD_final(instance, perm, tl, env)   # compute solution usinf FFD heuristic
                 val ::Float64  = fitness(sol, TAG_FitGA)                            # compute objective value
@@ -660,7 +660,7 @@ function GA_V2(
             end
         end
 
-    # ====================< Random individuals >====================
+# ====================< Random individuals >====================
 
     print("\n     - $(mod==1 ? "FF" : mod==3 ? "BF" : "WF"): (x$(if gen.id == 0 max_pop - length(all_sort_crit) else max_pop - elite_size end))\n        ")
     while length(gen.pop) < max_pop && !flag_opti && !flag_tl && !flag_improv
