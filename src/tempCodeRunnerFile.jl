@@ -58,3 +58,79 @@ function generateRounds(
 
     return (rounds, currentId)
 end
+
+begin # Library
+    # Test
+	import BenchmarkTools
+	import ProfileCanvas
+
+    # Miscelaneous
+    using Random
+end
+    
+begin # Files
+    include("parsing.jl")
+
+    include("Route.jl")
+    include("Session.jl")
+    include("Solution.jl")
+
+    include("Instance.jl")
+    include("MILP.jl")
+    include("Miscelaneous.jl")
+    
+    # include("OptiMove.jl")
+    
+    include("GeneticAlgorithm.jl")
+
+    include("SessionRebuild.jl")
+end
+
+# ================================================================================= #
+#  #######  ##    #   ######  #######   #####   ##    #   ######  #######   ######  #
+#     #     # #   #  #           #     #     #  # #   #  #        #        #        #
+#     #     #  #  #   #####      #     #######  #  #  #  #        ####      #####   #
+#     #     #   # #        #     #     #     #  #   # #  #        #              #  #
+#  #######  #    ##  ######      #     #     #  #    ##   ######  #######  ######   #
+# ================================================================================= #
+
+# tmp_O::Int64 = 10
+# tmp_Lmax::Int64 = 10
+# routes = [Route(1, tmp_O, (1, tmp_Lmax, 1)) ;[Route(i, tmp_O, (tmp_Lmax, 1)) for i = 2:(tmp_O-1)]]
+
+# begin
+#     glob_tl::Int64 = 10
+#     glob_env::Gurobi.Env = Gurobi.Env()
+
+#     all_δ = zeros(Int64, 8, 5)
+
+#     for i=1:100
+#         print("<i = $i> ")
+#         for (p1, δ1) in enumerate([.19])
+#             for (p2, δ2) in enumerate([.15])
+#                 Lmax, mat, nbSession = parseMyInstance("../data/Chunk/instanceChunk_$(i)_O20_R20_C100_opt_1.txt")
+#                 instance::Instance = Instance(mat, 0.25)
+#                 instance.Lmax = Lmax
+
+#                 glob_s = Session(Lmax, instance.route)
+
+#                 _, glob_res = rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env, [δ1, δ2])
+#                 print("$(glob_res ? "-" : "x")")
+#                 glob_res && (all_δ[p1, p2] += 1)
+#             end
+#         end
+#         println()
+#     end
+
+#     print("δ -> $all_δ, ∑ -> $(maximum(all_δ))")
+# end
+
+begin
+    Lmax, mat, nbSession = parseMyInstance("../data/Chunk/instanceChunk_1_O200_R20_C100_opt_1.txt")
+    instance::Instance = Instance(mat, 0.25)
+    instance.Lmax = Lmax
+
+    glob_s = Session(Lmax, instance.route)
+
+    rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env, [10., .1, 1.])
+end

@@ -1,0 +1,204 @@
+<k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=2> 
+<k = 2> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 3> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=4> 
+<k = 4> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=5> 
+<k = 5> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 6> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,8
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,8
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 6> <No model> 
+<k = 5> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 6> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> <MA-FAIL: not enought inserted>
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+
+
+
+
+
+<k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=2> 
+<k = 2> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 3> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=4> 
+<k = 4> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=5> 
+<k = 5> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 6> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,8
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,8
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 6> <No model> 
+<k = 5> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 6> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 8> F = 1, M = 2,3,4,5,6,7,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 8> F = 1, M = 2,3,4,5,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <k = 1> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=9> 
+<k = 2> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=5> 
+<k = 3> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=8> 
+<k = 4> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=4> 
+<k = 5> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 6> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 8> F = 1, M = 3,4,5,6,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=2> 
+<k = 8> F = 1, M = 2,3,4,5,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=2> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 8> F = 1, M = 2,3,4,5,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 8> F = 1, M = 2,4,5,6,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 8> F = 1, M = 3,4,5,6,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=2> 
+<k = 8> F = 1, M = 2,4,5,6,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 6> <No model> 
+<k = 5> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=2> 
+<k = 6> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 8> F = 1, M = 2,3,4,5,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 8> F = 1, M = 2,4,5,6,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 
+<k = 6> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=6> 
+<k = 7> F = , M = 1,2,3,4,5,6,7,8,9
+<FA-PASS: F is empty> <MA-SUCC: x=7> 
+<k = 8> F = 1, M = 2,4,5,6,7,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> <MA-SUCC: x=3> 
+<k = 8> F = 1, M = 2,3,4,5,6,8,9
+<FA-SUCC: F=1><MA-FAIL: not enought volume> 
+<k = 7> <Re-optimisation> <FA-PASS: F is empty> 
+<k = 7> <No model> 

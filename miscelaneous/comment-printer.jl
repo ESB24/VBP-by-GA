@@ -367,6 +367,16 @@ function space(height::Int64)
     (height == 5) && (return "        ") 
 end
 
+function dot(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "        ") 
+    (height == 2) && (return "        ") 
+    (height == 3) && (return "        ") 
+    (height == 4) && (return " /##\\   ") 
+    (height == 5) && (return " \\##/   ") 
+end
+
 function dash(height::Int64)
     (height < 1 || 5 < height) && (return "")
 
@@ -374,6 +384,26 @@ function dash(height::Int64)
     (height == 2) && (return "        ") 
     (height == 3) && (return "  ####  ") 
     (height == 4) && (return "        ") 
+    (height == 5) && (return "        ") 
+end
+
+function greater_than(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "        ") 
+    (height == 2) && (return "  ##    ") 
+    (height == 3) && (return "    ##  ") 
+    (height == 4) && (return "  ##    ") 
+    (height == 5) && (return "        ") 
+end
+
+function lesser_than(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "        ") 
+    (height == 2) && (return "    ##  ") 
+    (height == 3) && (return "  ##    ") 
+    (height == 4) && (return "    ##  ") 
     (height == 5) && (return "        ") 
 end
 
@@ -417,9 +447,12 @@ function letter(c::Char, height::Int64)
     (c == '9') && (return nine(height))
     
     (c == ' ') && (return space(height))
+    (c == '.') && (return dot(height))
     (c == '-') && (return dash(height))
+    (c == '>') && (return greater_than(height))
+    (c == '<') && (return lesser_than(height))
 
-    return "Error"
+    return "<Error>"
 end
 
 function print_comment(str::String; path::String = "./miscelaneous/output.txt", max_char::Int64 = 11)
@@ -453,4 +486,4 @@ end
 # print_comment("display")
 # print_comment("misc")
 # print_comment("lower bound")
-# print_comment("upper bound")
+print_comment("v5")

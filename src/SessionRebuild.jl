@@ -11,6 +11,7 @@ end
 begin
     include("DataStruct.jl")
     include("MyDistribution.jl")
+    include("GlobalDisplay.jl")
 end
 
 function rebuildSession(s::Session)
@@ -434,21 +435,13 @@ function rebuild_full_model(s::Session, tl::Int64 = 100, env::Gurobi.Env = Gurob
 end
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## ============================================================================================================== ##
+##                                               ##    ##   ######                                                ##
+##                                               ##    ##        ##                                               ##
+##                                       ####     ##  ##     #####     ####                                       ##
+##                                                ##  ##         ##                                               ##
+##                                                  ##      ######                                                ##
+## ============================================================================================================== ##
 
 
 function setup_O1KP_V3(R, B, V, J, C, O, tl, env::Gurobi.Env = Gurobi.Env(), δ::Vector{Float64} = [1., 1.])
@@ -464,7 +457,7 @@ function setup_O1KP_V3(R, B, V, J, C, O, tl, env::Gurobi.Env = Gurobi.Env(), δ:
 
     @variable(model, x[r in R], Bin)
 
-    @objective(model, Max, sum([x[r] * (V[r] + (delta1/(length(δ) * length(R))) * ((B[r]-J[r]) / (b+1)) + (delta2/(length(δ) * length(R))) * (V[r]/(m+1))^2) for r in R])) # + (δ[3]/length(δ)) * (((m - V[r])/m)^2)  + (δ[4]/length(δ)) * (sum(x)/length(R))) #  
+    @objective(model, Max, sum([x[r] * (V[r] + (δ[1]/(length(δ) * length(R))) * ((B[r]-J[r]) / (b+1)) + (δ[2]/(length(δ) * length(R))) * (V[r]/(m+1))^2) for r in R])) 
 
     @constraint(model, sum([x[r] * V[r] for r in R]) <= C)
 
@@ -494,6 +487,17 @@ end
 function Forced_mail_affectation!(s, k, F, V, J)
     Lmax = s.Lmax
     
+    if VERBOSE
+        if isempty(F)
+            print_verbose("<FA-PASS: F is empty> ", ANSI_yellow)
+        else
+            if sum([V[r] for r in F]) > Lmax
+                print_verbose("<FA-FAIL: output overflow> ", ANSI_red)
+            end
+        end
+    end
+
+
     ((isempty(F) ? 0 : sum([V[r] for r in F])) > Lmax) && (return false)
 
     for r in F
@@ -502,16 +506,44 @@ function Forced_mail_affectation!(s, k, F, V, J)
         J[r] += 1
     end
 
+    isempty(F) || print_verbose("<FA-SUCC: F=$(join(F, ","))> ", ANSI_green)
+
     return true
 end
 
-function Model_mail_afffectation!(s, k, M, V, J, B, Lneed, model = nothing, tl = 10, env = Gurobi.Env(), δ = [0.3, 0.9, 0., 0., 0.])
+function Model_mail_afffectation!(
+        s::Session, 
+        k::Int64, 
+        M, 
+        V::Vector{Int64}, 
+        J::Vector{Int64}, 
+        B::Vector{Int64}, 
+        Lneed, 
+        model = nothing, 
+        tl = 10, 
+        env = Gurobi.Env(), 
+        δ = [0.3, 0.9, 0., 0., 0.]
+    )
     Lmax = s.Lmax
     O = length(s.load)
     L = s.load[k]
     C = Lmax - L
 
     (C == 0) && (return (nothing, true)) # forced mail complitely filled the output print(" - C == 0(first) - "); 
+
+    if VERBOSE
+        if isempty(M) || isempty([r for r in M if V[r] <= C])
+            if (Lneed - L <= Lmax * (O - k))
+                print_verbose("<MA-SUCC: M is empty> ", ANSI_green)
+            else
+                print_verbose("<MA-FAIL: M is empty> ", ANSI_red)
+            end
+        else
+            if (Lneed - L - sum([V[r] for r in M]) > Lmax * (O - k))
+                print_verbose("<MA-FAIL: not enought volume> ", ANSI_red)
+            end
+        end
+    end
 
     ((isempty(M)) || minimum([V[r] for r in M]) > C || (Lneed - sum(V) > Lmax * (O - k))) && (return (nothing, Lneed - L <= Lmax * (O - k))) # either no mail or to big to do a model print(" - empty(M)/min(M)>C - "); 
 
@@ -521,8 +553,8 @@ function Model_mail_afffectation!(s, k, M, V, J, B, Lneed, model = nothing, tl =
 
     (solution === nothing) && (return (nothing, Lneed - L <= Lmax * (O - k))) # print(" - no more sol - "); 
 
-    for (r, a) in zip(M, solution)
-        if a == 1
+    for (r, x) in zip(M, solution)
+        if x == 1
             s.route[r].assignment[k] = V[r]
             s.load[k] += V[r]
             J[r] += 1
@@ -532,7 +564,15 @@ function Model_mail_afffectation!(s, k, M, V, J, B, Lneed, model = nothing, tl =
     L = s.load[k]
     C = Lmax - L
 
-    (C == 0) && (return (model, true)) # useless print(" - C == 0 (second) - "); 
+    # (C == 0) && (return (model, true)) # useless print(" - C == 0 (second) - "); 
+
+    if VERBOSE
+        if (Lneed - L <= Lmax * (O - k))
+            print_verbose("<MA-SUCC: x=$(join([r for (r, x) in zip(M, solution) if x == 1], ","))> ", ANSI_green)
+        else
+            print_verbose("<MA-FAIL: not enought inserted>", ANSI_red)
+        end
+    end
 
     # print(" - C < 0, Lneed=$Lneed, L=$L, Lleft=$(Lmax * (O - k)) - ")
     return (model, Lneed - L <= Lmax * (O - k)) # C > 0
@@ -560,11 +600,17 @@ function rebuildSession_knapSack_model_V3!(s::Session, tl::Int64 = 10, env::Guro
 
     k::Int64 = 1
     while k <= O && reopt <= max_reopt
+
+        print_verbose("<k = $k> ")
+
         if length(stack) < k
             V   ::Vector{Int64} = [(0 < j <= length(r.mail)) ? r.mail[j] : 0 for (j, r) in zip(J, s.route)]
             F   ::Vector{Int64} = [r for r=1:Rs if ((J[r] <= B[r]) && (B[r] - J[r] >= O - k))]
-            M   ::Vector{Int64} = [r for r=1:Rs if ((J[r] <= B[r]) && (B[r] - J[r] < O - k))]
+            tmp_C = Lmax - sum([V[r] for r in F])
+            M   ::Vector{Int64} = [r for r=1:Rs if ((J[r] <= B[r]) && (B[r] - J[r] < O - k) && (V[r] <= tmp_C))]
             model = nothing
+
+            # println_verbose("F = $(join(F, ",")), M = $(join(M, ","))")
 
             if Forced_mail_affectation!(s, k, F, V, J)
                 model, valid = Model_mail_afffectation!(s, k, M, V, J, B, Lneed, nothing, tl, env, δ)
@@ -592,7 +638,7 @@ function rebuildSession_knapSack_model_V3!(s::Session, tl::Int64 = 10, env::Guro
             (last_k != k) ? (last_k = k; repeated_k = 0) : (repeated_k += 1) # || last_k != k+1 || last_k != k-1
 
 
-            rollback = ((repeated_k >= 5 && k >= 5) ? rand(1:min(ceil(Int64, O/20), length(stack)-1)) : (0)) # 
+            rollback = ((repeated_k >= 5 && k >= 5) ? rand(1:min(ceil(Int64, O/20), length(stack)-1)) : (0))
 
             # println("rollback = $rollback")
 
@@ -633,10 +679,10 @@ function rebuildSession_knapSack_model_V3!(s::Session, tl::Int64 = 10, env::Guro
             end
 
             if model === nothing
-                # println("    ->  No Model: (k=$k)")
+                print_verbose("<No model> ", ANSI_magenta)
                 k -= 1
             else
-                # print("    ->  Model: (k=$k)")
+                print_verbose("<Re-optimisation> ", ANSI_magenta)
                 solution = value.(model[:x])
 
                 Forced_mail_affectation!(s, k, F, V, J)
@@ -650,20 +696,463 @@ function rebuildSession_knapSack_model_V3!(s::Session, tl::Int64 = 10, env::Guro
 
                     (Lneed == 0) ? (k=O+1) : (k += 1)
                 end
-                # println("Re-opt $(valid ? "Success" : "Failed")$(model === nothing ? " ! lost model !" : "")")
+    
+                push!(stack, (deepcopy(F), deepcopy(M), deepcopy(V), model))
+            end
+        end
+        println_verbose()
+        # println_verbose("$(s.load)")
+        # println_verbose("$s")
+    end
+
+    return s, k == O+1
+end
+
+
+
+## ============================================================================================================== ##
+##                                               ##    ##     ####                                                ##
+##                                               ##    ##    ## ##                                                ##
+##                                       ####     ##  ##    ##  ##     ####                                       ##
+##                                                ##  ##   ########                                               ##
+##                                                  ##          ##                                                ##
+## ============================================================================================================== ##
+
+
+global REBUILD_WEIGHT       = 2 # 1-2
+global REBUILD_MODEL        = 1 # 1-2
+global REBUILD_BACKTRACK    = 2 # 0-1-2
+
+function setup_O1KP_V4(
+        M       ::Vector{Int64}                     , 
+        B       ::Vector{Int64}                     , 
+        V       ::Vector{Int64}                     , 
+        J       ::Vector{Int64}                     , 
+        C       ::Int64                             ,
+        Lneed   ::Int64                             ,
+        Lmax    ::Int64                             ,
+        O       ::Int64                             ,
+        k       ::Int64                             ,
+        τ       ::Int64                             , 
+        δ       ::Vector{Float64}                   ,
+        tl      ::Int64             = 10            , 
+        env     ::Gurobi.Env        = Gurobi.Env()  , 
+    )
+
+    function compute_weight(
+            M::Vector{Int64},  
+            B::Vector{Int64}, 
+            V::Vector{Int64}, 
+            J::Vector{Int64},
+            δ::Vector{Float64},
+        )
+        
+        weights::Vector{Float64} = zeros(Float64, length(M))
+
+
+        if REBUILD_WEIGHT == 1
+            max_mail_left   ::Int64 = maximum([B[r] - J[r] for r in M])
+            max_mail_volume ::Int64 = maximum([V[r] for r in M])
+
+            # Main objective: Maximize mail volume
+            for (i, r) in enumerate(M)
+                weights[i] += V[r]
+            end
+
+            # Secondary objective (1/2): priority to route with a lot of mail left to assign
+            for (i, r) in enumerate(M)
+                weights[i] += (δ[1] / (2 * length(M))) * ((B[r] - J[r]) / (max_mail_left + 1))
+            end
+
+            # Secondary objective (2/2): priority to larger mail
+            for (i, r) in enumerate(M)
+                weights[i] += (δ[2] / (2 * length(M))) * (V[r] / (max_mail_volume+1))^2
+            end
+
+            sum_obj1 = round(sum([(δ[1] / (2 * length(M))) * ((B[r] - J[r]) / (max_mail_left + 1))  for (i, r) in enumerate(M)]), digits=10)
+            sum_obj2 = round(sum([(δ[2] / (2 * length(M))) * (V[r] / (max_mail_volume+1))^2         for (i, r) in enumerate(M)]), digits=10)
+
+            print_verbose("<obj1>", ANSI_green) #  = $(round(sum_obj1 - sum_obj2, digits=3))
+        elseif REBUILD_WEIGHT == 2
+
+            # Main objective: Maximize mail volume
+            for (i, r) in enumerate(M)
+                weights[i] += V[r]
+            end
+
+            # Secondary objective (1/2): priority to route with a lot of mail left to assign
+            tmp_sec_obj1 = 1 + sum([B[r] - J[r] for r in M])
+            for (i, r) in enumerate(M)
+                weights[i] += δ[1] * (B[r] - J[r]) / tmp_sec_obj1
+            end
+
+            # Secondary objective (2/2): priority to larger mail
+            tmp_sec_obj2 = 1 + sum([(V[r])^2 for r in M])
+            for (i, r) in enumerate(M)
+                weights[i] += δ[2] * (V[r])^2 / tmp_sec_obj2
+            end
+
+            print_verbose("<obj2>", ANSI_green)
+        end
+
+        return weights
+    end
+    
+    # Compute variable weight for objective fonction
+    w           ::Vector{Float64}   = compute_weight(M, B, V, J, δ)
+    Required    ::Int64             = Lneed - ((O - k) * Lmax)
+
+    # println("w = $w")
+
+    model = Model(() -> Gurobi.Optimizer(env))
+    set_silent(model)
+    set_optimizer_attribute(model, "OutputFlag", 0)
+    set_optimizer_attribute(model, "TimeLimit", tl)
+
+    if REBUILD_MODEL == 1
+        # VAR (1/1): x ∈ {0, 1} equals 1 if first non assigned mail of route r is placed in output, 0 otherwise.
+        @variable(model, x[r in M], Bin)
+
+        # OBJ (1/1): Maximize ~ mail volume (∈ ℕ) mail selection (∈ [0, 1[) 
+        @objective(model, Max, sum([x[r] * w[i] for (i, r) in enumerate(M)]))
+
+        # CST (1/2): Capacity cst
+        @constraint(model, sum([x[r] * V[r] for r in M]) ≤ C)
+
+        # CST (2/2): Required mail volume cst
+        if (0 < Required)
+            @constraint(model, Required ≤ sum([x[r] * V[r] for r in M]))
+        end
+
+        print_verbose("<cst1>", ANSI_green)
+    elseif REBUILD_MODEL == 2
+        # VAR (1/2): x ∈ {0, 1} equals 1 if first non assigned mail of route r is placed in output, 0 otherwise.
+        @variable(model, x[r in M], Bin)
+
+        # VAR (2/2): P ∈ ℕ Penality for not reaching the average required volume
+        @variable(model, 0 ≤ P ≤ C, Int)
+
+        # OBJ (1/1): Maximize ~ mail volume (∈ [0, 1]), use big mail (∈ [0, 1]), mail with fullest route (∈ [0, 1]) -> weighted using δ
+        @objective(model, Max, sum([x[r] * w[i] for (i, r) in enumerate(M)]) - P)
+
+        # CST (1/3): Capacity cst
+        @constraint(model, sum([x[r] * V[r] for r in M]) ≤ C)
+
+        # CST (2/3): Required mail volume cst
+        if (0 < Required)
+            @constraint(model, Required ≤ sum([x[r] * V[r] for r in M]))
+        end
+
+        # CST (3/3): Penality cst
+        if (Required < (Lmax - τ) < C)
+            @constraint(model, (Lmax - (τ + sum([x[r] * V[r] for r in M]))) ≤ P)
+        end
+
+        print_verbose("<cst2>", ANSI_green)
+    end
+
+    return model
+end
+
+function solve_O1KP_V4(model::Model)::Union{Vector{Int64}, Nothing}
+    optimize!(model)
+    if termination_status(model) == MOI.OPTIMAL
+        solution = value.(model[:x])
+        return solution
+    else
+        return nothing
+    end
+end
+
+function update_01KP_V4!(
+        M       ::Vector{Int64},    # Id of the route considered by the model 
+        V       ::Vector{Int64},    # Volume of the first non assigned mail of each route in session s
+        model   ::Model        ,    # Model to update  
+    )
+    solution = value.(model[:x])
+
+    @constraint(model, sum([(1 - solution[r]) * model[:x][r] for r in M]) + sum([solution[r] * (1 - model[:x][r]) for r in M]) >= 1)
+
+    # TODO -> update model obj
+    # TODO -> update min volume cst ?
+
+    obj = sum([solution[r] * V[r] for r in M])
+    @constraint(model, sum([model[:x][r] * V[r] for r in M]) >= obj)
+end
+
+function backtrack(
+        k                   ::Int64         , # current output
+        total_count_reopt   ::Int64         , # Total number of re-optimisation
+        total_max_reopt     ::Int64         , # Maximum number of re-optimisation
+        count_reopt         ::Vector{Int64} , # Count for each output how many time the model has been re-optimized
+        max_reopt           ::Int64         , # Maximum reopt before further backtracking
+        threshold_reopt     ::Int64         , # min output index before big backtrack step
+        last_k              ::Int64         , # last output that required reoptimisation
+        repeated_k          ::Int64         , # how many times last_k has been reoptimisation
+        O                   ::Int64         , # Number of output
+    )
+
+    total_count_reopt += 1
+
+    if REBUILD_BACKTRACK == 0 # Only backtrack exactly 1 output
+
+        return (k, total_count_reopt, last_k, repeated_k, 0)
+
+    elseif REBUILD_BACKTRACK == 1 # Backtrack more than 1 iff threshold is past and same output is optimized multiple time in a row
+
+        (last_k != k) ? (last_k = k; repeated_k = 0) : (repeated_k += 1)
+
+        rollback = ((repeated_k >= 5 && k >= 5) ? rand(1:min(ceil(Int64, O/20), k)) : (0))
+
+        return (k, total_count_reopt, last_k, repeated_k, rollback)
+
+    elseif REBUILD_BACKTRACK == 2 # Backtrack more than 1 iff threshold is past and same output has already been reoptimized multiple times
+
+        count_reopt[k] += 1
+        rollback = 0
+
+        if (threshold_reopt < k) && (max_reopt < count_reopt[k])
+            rollback +=  rand(1:min(ceil(Int64, O/20), k))
+        end
+
+        return (k, total_count_reopt, last_k, repeated_k, rollback)
+    end
+end
+
+function Forced_mail_affectation_V4!(
+        s::Session          , # Rebuild session 
+        k::Int64            , # Current output
+        F::Vector{Int64}    , # Route which will force a mail into the current output k
+        V::Vector{Int64}    , # Volumes of the mails
+        J::Vector{Int64}    , # Indexes of the first non assigned mail
+        Lneed::Int64        ,
+    )::Tuple{Bool, Int64}
+
+    # Test: no forced affectations
+    if isempty(F)
+        print_verbose("<FA-PASS: F is empty> ", ANSI_yellow)
+        return (true, Lneed)
+    end
+
+    # Test: forced affectation make the output overflow
+    if sum([V[r] for r in F]) > s.Lmax
+        print_verbose("<FA-FAIL: output overflow> ", ANSI_red)
+        return (false, Lneed)
+    end
+
+    # Force first non assigned mail of each route in F to output k
+    for r in F
+        s.route[r].assignment[k] = V[r]     # Update mail assignemnent
+        s.load[k] += V[r]                   # Update output load
+        J[r] += 1                           # Update first non assigned mail
+    end
+
+    print_verbose("<FA-SUCC: F=$(join(F, ","))> ", ANSI_green)
+
+    return (true, Lneed - s.load[k])
+end
+
+function Model_mail_affectation_V4!(
+        s       ::Session                               , # Rebuild session 
+        k       ::Int64                                 , # Current output
+        O       ::Int64                                 , # Number of output 
+        M       ::Vector{Int64}                         , # Set of route to be considered by the model
+        V       ::Vector{Int64}                         , # Volumes of the mails
+        J       ::Vector{Int64}                         , # Indexes of the first non assigned mail
+        B       ::Vector{Int64}                         , # Number of mail in each route of session s
+        Lneed   ::Int64                                 , # Required load for output k (to avoid failure)
+        τ       ::Int64                                 , # Average tolerable hollowness for an output 
+        δ       ::Vector{Float64}                       , # weight objective for the model
+        model   ::Union{Model, Nothing} = nothing       , # Already updated model to use
+        tl      ::Int64                 = 10            , # Time limite for the model
+        env     ::Gurobi.Env            = Gurobi.Env()  , # Gurobi environement (display purpose)
+    )::Tuple{Union{Model, Nothing}, Bool, Int64}
+    
+    Lmax    ::Int64 = s.Lmax            # Maximum capacity of output k
+    C       ::Int64 = Lmax - s.load[k]      # Residual capacity left after forced affectation
+
+    # Test: Model has no mail to insert
+    if isempty(M)
+        if VERBOSE
+            if (Lneed <= Lmax * (O - k))
+                print_verbose("<MA-SUCC: M is empty> ", ANSI_yellow)
+            else
+                print_verbose("<MA-FAIL: M is empty> ", ANSI_red)
+            end
+        end
+        return (nothing, Lneed <= Lmax * (O - k), Lneed)
+    end
+    
+    # Test: Model cannot insert enought mail to satisfy the volume constraints
+    if (Lneed - sum([V[r] for r in M]) > Lmax * (O - k))
+        print_verbose("<MA-FAIL: not enought volume> ", ANSI_red)
+        return (nothing, false, Lneed)
+    end
+
+    (model == nothing) && (model = setup_O1KP_V4(M, B, V, J, C, Lneed, Lmax, O, k, τ, δ, tl, env))
+
+    solution = solve_O1KP_V4(model)
+
+    (solution === nothing) && (return (nothing, Lneed <= Lmax * (O - k), Lneed))
+
+    L::Int64 = 0 # mail volume added by the model
+
+    for (r, x) in zip(M, solution)
+        if x == 1
+            s.route[r].assignment[k] = V[r]
+            s.load[k] += V[r]
+            J[r] += 1
+
+            L += V[r]
+        end
+    end
+    
+    if VERBOSE
+        if (Lneed - L <= Lmax * (O - k))
+            print_verbose("<MA-SUCC: x=$(join([r for (r, x) in zip(M, solution) if x == 1], ","))> ", ANSI_green)
+        else
+            print_verbose("<MA-FAIL: not enought inserted>", ANSI_red)
+        end
+    end
+
+    return (model, Lneed - L <= Lmax * (O - k), Lneed - L)
+end
+
+function rebuildSession_knapSack_model_V4!(
+        s   ::Session                           , # Rebuilded session
+        tl  ::Int64             = 10            , # Time limit to execute the model
+        env ::Gurobi.Env        = Gurobi.Env()  , # Gurobi model environement (display purpose)
+        δ   ::Vector{Float64}   = [[.3, .9], [.2, .15]][REBUILD_MODEL] # Weights for model objective
+    )
+
+    # ====================< Miscelaneous >====================
+
+    O       ::Int64         = length(s.load)                        # Number of output of the session
+    R       ::Int64         = length(s.route)                       # Number of route to fit in the session
+    Lmax    ::Int64         = s.Lmax                                # Maximum capacity of each output
+    Lneed   ::Int64         = sum([sum(r.mail) for r in s.route])   # Volume of mail to fit in the session
+    τ       ::Int64         = ceil(Int64, ((O * Lmax) - Lneed) / O) # Average tolerable hollowness for an output
+    k       ::Int64         = 1                                     # Current output 
+    J       ::Vector{Int64} = ones(Int64, R)                        # First not assigned mail of each route
+    B       ::Vector{Int64} = [length(r.mail) for r in s.route]     # Number of mail in each route
+
+    s       ::Session = Session(s.Lmax, [Route(r.id, zeros(Int64, O), r.mail) for r in s.route], zeros(Int64, O)) # Empty Session
+
+    # ====================< Re-optimisation >====================
+
+    stack   ::Vector{Tuple{Vector{Int64}, Vector{Int64}, Vector{Int64}, Union{Model, Nothing}}} = [] # Stored information about each filled output
+
+    total_count_reopt     ::Int64         = 0                             # Total number of re-optimisation
+    total_max_reopt       ::Int64         = ceil(Int64, 2O)               # Maximum number of re-optimisation
+    count_reopt     ::Vector{Int64} = zeros(Int64, O)               # Count for each output how many time the model has been re-optimized
+    max_reopt       ::Int64         = max(5, ceil(Int64, R/4))
+    threshold_reopt ::Int64         = max(10, ceil(Int64, O/10))    # min output index before big backtrack step
+    last_k          ::Int64         = 0                             # last output that required reoptimisation
+    repeated_k      ::Int64         = 0                             # how many times last_k has been reoptimisation
+
+    while k <= O && total_count_reopt <= total_max_reopt
+
+        print_verbose("<k=$k,reopt=$total_count_reopt> ")
+        
+        if length(stack) < k
+            
+            V::Vector{Int64}    = [(0 < j <= length(r.mail)) ? r.mail[j] : 0 for (j, r) in zip(J, s.route)]     # Volume of the first not-assigned mail of each route
+            F::Vector{Int64}    = [r for r=1:R if ((0 < J[r] <= B[r]) && (B[r] - J[r] >= O - k))]               # Set of route that need to force a mail
+            C::Int64            = Lmax - sum([V[r] for r in F])                                                 # Remaining capacity after forced affectations
+            M::Vector{Int64}    = [r for r=1:R if ((0 < J[r] <= B[r]) && (B[r] - J[r] < O - k) && (V[r] <= C))] # Set of route the model consider to insert mail
+
+            print_verbose("<$Lneed> ", (ANSI_bold, ANSI_cyan))
+
+            forced_affect_success::Bool, Lneed = Forced_mail_affectation_V4!(s, k, F, V, J, Lneed)
+            
+            if forced_affect_success
+
+                print_verbose("<$Lneed> ", (ANSI_bold, ANSI_cyan))
+
+                model, model_affect_success, Lneed = Model_mail_affectation_V4!(s, k, O, M, V, J, B, Lneed, τ, δ, nothing, tl, env)
+
+                print_verbose("<$Lneed> ", (ANSI_bold, ANSI_cyan))
+
+                if model_affect_success
+                    push!(stack, (deepcopy(F), deepcopy(M), deepcopy(V), model))
+                    (Lneed == 0) ? (k=O+1) : (k += 1)
+                else
+                    k -= 1
+                end
+            else
+                k -= 1
+            end
+        else
+            isempty(stack) && (return s, false)
+
+            k, total_count_reopt, last_k, repeated_k, rollback = backtrack(k, total_count_reopt, total_max_reopt, count_reopt, max_reopt, threshold_reopt, last_k, repeated_k, O)
+
+            for r=1:R
+                if s.route[r].assignment[k+1] != 0
+                    s.route[r].assignment[k+1] = 0
+                    J[r] -= 1
+                end
+            end
+            Lneed += s.load[k+1]
+            s.load[k+1] = 0
+            F, M, V, model = ([], [], [], nothing)
+
+            for i=0:rollback
+                (i != 0) && (k -= 1)
+
+                F, M, V, model = pop!(stack)
+
+                for r=1:R
+                    if s.route[r].assignment[k] != 0
+                        s.route[r].assignment[k] = 0
+                        J[r] -= 1
+                    end
+                end
+                Lneed += s.load[k]
+                s.load[k] = 0
+            end
+
+            if model === nothing
+                print_verbose("<No model> ", ANSI_magenta)
+                k -= 1
+            else
+
+                print_verbose("<$Lneed> ", (ANSI_bold, ANSI_cyan))
+
+                _, Lneed = Forced_mail_affectation_V4!(s, k, F, V, J, Lneed)
+
+                print_verbose("<$Lneed> ", (ANSI_bold, ANSI_cyan))
+                print_verbose("<Re-optimisation> ", ANSI_magenta)
+
+                update_01KP_V4!(M, V, model)
+
+                model, model_affect_success, Lneed = Model_mail_affectation_V4!(s, k, O, M, V, J, B, Lneed, τ, δ, model, tl, env)
+
+                print_verbose("<$Lneed> ", (ANSI_bold, ANSI_cyan))
+
+                if model_affect_success
+                    (Lneed == 0) ? (k=O+1) : (k += 1)
+                end
 
                 push!(stack, (deepcopy(F), deepcopy(M), deepcopy(V), model))
             end
         end
+        println_verbose()
     end
 
-    # println("==========")
-    # println("    re-opt:$(reopt)")
-    # println("==========")
-
-    # print(">")
-    
     return s, k == O+1
 end
+
+## ============================================================================================================== ##
+##                                               ##    ##   ######                                                ##
+##                                               ##    ##  ##                                                     ##
+##                                                ##  ##    ######                                                ##
+##                                                ##  ##         ##                                               ##
+##                                                  ##      ######                                                ##
+## ============================================================================================================== ##
+
+
+
+
 
 

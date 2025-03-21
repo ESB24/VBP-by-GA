@@ -37,12 +37,14 @@ function buildSolution_FFD(
     # upgrades::Vector{Int64} = zeros(Int64, length(TAG_AddRoute))
 
     for routeId in perm
+        println(" - route: $routeId")
         sId         ::Int64     = 1
         added       ::Bool      = false
         r           ::Route     = instance.route[routeId]
 
         while !added
             if sId <= length(sol.sessions)
+                println("   - session: $sId")
                 # print("(sava_nt), ")
                 # st          ::Union{Session, Nothing} = nothing
                 # flag        ::Bool      = false
@@ -50,7 +52,9 @@ function buildSolution_FFD(
 
                 while !added && flagId <= length(TAG_AddRoute)
                     # st, added = addRoute(sol.sessions[sId], r, TAG_AddRoute[flagId], Δ=Δ, TAG_FitSes=TAG_FitSes, tl=tl, env=env)
-                    _, added = addRoute(sol.sessions[sId], r, TAG_AddRoute[flagId], Δ, TAG_FitSes, tl, env)
+                    println("     - add TAG : $(TAG_AddRoute[flagId])")
+                    res, _ = addRoute(sol.sessions[sId], r, TAG_AddRoute[flagId], Δ, TAG_FitSes, tl, env)
+
                     # flag && (upgrades[flagId] += 1)
                     flagId += 1
                 end
@@ -121,13 +125,13 @@ Full procedure to insert a route r into a solution s, following a First-fit like
     while !added                                                                                                # While r hasn't been added to any sorting session
         if sId <= length(sol.sessions)                                                                          #  |  if any more session
             s::Session = sol.sessions[sId]                                                                      #  |   |
-            if length(s.route) < length(s.loads) && certificat_CapacityVolume(s, r)                             #  |   | if Volume and number of route certificates
-                added, newAssignment::Vector{Int64} = addRoute_NFBA(s, r)                                       #  |   |   |  Try adding r using left alligned assignment
+            if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)                              #  |   | if Volume and number of route certificates
+                newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)                               #  |   |   |  Try adding r using left alligned assignment
                 if added                                                                                        #  |   |   |  if Left alligned assignment valid
-                    s, added = addRoute_SAVA!(s, r)                                                             #  |   |   |   |  Try adding r using a smoother assignment
+                    s, added = addRoute_SmoothAssigned!(s, r)                                                   #  |   |   |   |  Try adding r using a smoother assignment
                     if !added                                                                                   #  |   |   |   |  if smoother assignment not valid
                         r = Route(r.id, newAssignment, r.mail)                                                  #  |   |   |   |   |  use Left alligned assignment
-                        s.loads += newAssignment                                                                #  |   |   |   |   |
+                        s.load += newAssignment                                                                 #  |   |   |   |   |
                         push!(s.route, r)                                                                       #  |   |   |   |   |
                         added = true                                                                            #  |   |   |   |   |
                     end                                                                                         #  |   |   |   |  end
@@ -147,13 +151,13 @@ end
 @inline function insert_route!(s::Session, r::Route)::Bool
     added::Bool = false
     
-    if length(s.route) < length(s.loads) && certificat_CapacityVolume(s, r)                             #  if Volume and number of route certificates
+    if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)                             #  if Volume and number of route certificates
         added, newAssignment::Vector{Int64} = addRoute_NFBA(s, r)                                       #   |  Try adding r using left alligned assignment
         if added                                                                                        #   |  if Left alligned assignment valid
             s, added = addRoute_SAVA!(s, r)                                                             #   |   |  Try adding r using a smoother assignment
             if !added                                                                                   #   |   |  if smoother assignment not valid
                 r = Route(r.id, newAssignment, r.mail)                                                  #   |   |   |  use Left alligned assignment
-                s.loads += newAssignment                                                                #   |   |   |
+                s.load += newAssignment                                                                #   |   |   |
                 push!(s.route, r)                                                                       #   |   |   |
                 added = true                                                                            #   |   |   |
             end                                                                                         #   |   |  end

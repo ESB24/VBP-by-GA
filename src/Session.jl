@@ -479,7 +479,7 @@ function addRoute_LeftAlligned(s::Session, r::Route{N}) where N
         (j > Br) && (break)
         (Br - j > O - k) && (valid = false)
     end
-    return (valid, newAssignment)::Tuple{Bool, Vector{Int64}}
+    return (newAssignment, valid)::Tuple{Vector{Int64}, Bool}
 end
 
 function addRoute_LeftAlligned!(s::Session, r::Route{N}) where N
@@ -506,7 +506,7 @@ function addRoute_LeftAlligned!(s::Session, r::Route{N}) where N
         r.assignment = newAssignment
     end
 
-    return (valid, newAssignment)::Tuple{Bool, Vector{Int64}}
+    return (newAssignment, valid)::Tuple{Vector{Int64}, Bool}
 end
 
 """

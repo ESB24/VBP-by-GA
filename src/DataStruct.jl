@@ -34,7 +34,7 @@ call = 0
 repairedBuild = 0
 improvedOverAll = 0
 locked = 0
-delta1 = 0.2
+delta1 = 0.3
 delta2 = 0.9
 
 mutable struct GenVal

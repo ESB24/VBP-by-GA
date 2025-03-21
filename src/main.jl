@@ -47,6 +47,8 @@ begin
     # instanceS.Lmax = max(round(Int64, sum(mat) / (5 * O)), maximum(mat))
 end
 
+buildSolution_BF(instance)
+
 begin
     # Oscar
     numberOfOutputs, numberOfRoutes, numberOfSessions, sessions, Lmax = parseOptiInstance("TER/data/hard/test/instance_1_200_644_opt_10_50_50.txt")
