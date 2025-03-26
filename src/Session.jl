@@ -313,7 +313,7 @@ function addRoute_SmoothAssigned!(s::Session, r::Route{N}) where N
     O::Int64 = length(s.load)
     Br::Int64 = length(r.mail)
 
-    (Br == O) && (return addRoute_RAW!(s, r)) # route is full
+    (Br == O) && (return addRoute_RAW!(s, r)) # route is full (no mail movement possible)
 
     valid::Bool = true
     newPos::Vector{Int64} = sort!(sortperm(s.load)[1:Br]) # O(n log(n))
@@ -868,20 +868,20 @@ function addRoute_OPTIMOVE_oneMove!(s::Session, r::Route{N}, TAG_FitSes::Type{<:
     return (ns, flag)::Tuple{Session, Bool}
 end
 
-function addRoute_OPTIMOVE_3Stages!(s::Session, r::Route{N}, TAG_FitSes::Type{<:FitnessSession} = LoadSTD)::Tuple{Session, Bool} where N
+function addRoute_OPTIMOVE_3Stages!(s::Session, r::Route, TAG_FitSes::Type{<:FitnessSession} = LoadSTD)::Tuple{Session, Bool}
     # session capacity
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
-    sFit::Float64 = fitness(s, TAG_FitSes)
-    (global call += 1)
+    # sFit::Float64 = fitness(s, TAG_FitSes)
+    # (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_V1(ns, TAG_FitSes)
     
-    (nsFit < sFit) && (global improvedOverAll += 1)
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    # (nsFit < sFit) && (global improvedOverAll += 1)
+    # (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 

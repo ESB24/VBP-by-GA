@@ -94,43 +94,99 @@ end
 #  #######  #    ##  ######      #     #     #  #    ##   ######  #######  ######   #
 # ================================================================================= #
 
-# tmp_O::Int64 = 10
-# tmp_Lmax::Int64 = 10
-# routes = [Route(1, tmp_O, (1, tmp_Lmax, 1)) ;[Route(i, tmp_O, (tmp_Lmax, 1)) for i = 2:(tmp_O-1)]]
+function test()
+    instance, nbSession = parseAnyInstance("instanceSkewed_1_O200_R20_C60_opt_1.txt")
+
+    R = instance.route
+    B = [length(r.mail) for r in R]
+    J = [rand(1:B[r]) for r=1:length(R)]
+    V = [r.mail[J[k]] for (k, r) in enumerate(R)]
+
+    m = maximum(V)
+    b = maximum([B[r] - J[r] for r=1:length(R)])
+
+    w1 = zeros(Float64, length(R))
+    w2 = zeros(Float64, length(R))
+
+    for r=1:length(R)
+        obj1_1 = (.3/(2 * length(R))) * ((B[r]-J[r]) / (b+1))
+        obj1_2 = (.9/(2 * length(R))) * (V[r]/(m+1))^2
+
+        w1[r] += V[r] + obj1_1 + obj1_2
+        
+        obj2_1 = (.61) * ((B[r]-J[r]) / (1+sum(B-J)))
+        obj2_2 = (.39) * ((V[r]^2) / (1+sum(V.^2)))
+
+        w2[r] += V[r] + obj2_1 + obj2_2
+    end
+
+    (w1 == w2) ? print("o") : print("-")
+end
+
+
+
+
+function rebuild1Session(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt")
+    tmp = VERBOSE
+    global VERBOSE = true
+
+    instance, nbSession = parseAnyInstance(inst_name)
+
+    glob_s = Session(instance.Lmax, instance.route)
+    glob_tl = 10
+    glob_env = Gurobi.Env()
+
+    s, tag = rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env)
+    println_verbose("$s")
+    println_verbose("VALID = $tag", ANSI_cyan)
+    global VERBOSE = tmp
+    return s, tag
+end
 
 # begin
-#     glob_tl::Int64 = 10
-#     glob_env::Gurobi.Env = Gurobi.Env()
-
-#     all_δ = zeros(Int64, 8, 5)
-
-#     for i=1:100
-#         print("<i = $i> ")
-#         for (p1, δ1) in enumerate([.19])
-#             for (p2, δ2) in enumerate([.15])
-#                 Lmax, mat, nbSession = parseMyInstance("../data/Chunk/instanceChunk_$(i)_O20_R20_C100_opt_1.txt")
-#                 instance::Instance = Instance(mat, 0.25)
-#                 instance.Lmax = Lmax
-
-#                 glob_s = Session(Lmax, instance.route)
-
-#                 _, glob_res = rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env, [δ1, δ2])
-#                 print("$(glob_res ? "-" : "x")")
-#                 glob_res && (all_δ[p1, p2] += 1)
-#             end
-#         end
-#         println()
+#     cpt = 0
+#     nb_test = 10
+#     total_time = 0.
+#     for i=1:nb_test
+#         start = time()  
+#         _, tag = rebuild1Session("instanceSkewed_$(i)_O200_R20_C60_opt_1.txt")
+#         total_time +=  time() - start 
+#         sleep(5) 
+#         tag && (cpt += 1)
 #     end
-
-#     print("δ -> $all_δ, ∑ -> $(maximum(all_δ))")
+#     global VERBOSE = true
+#     println_verbose("optimal = $cpt/$nb_test took in average $(round(total_time/nb_test, digits=3))", ANSI_cyan)
+#     global VERBOSE = false
 # end
 
-begin
-    Lmax, mat, nbSession = parseMyInstance("../data/Chunk/instanceChunk_1_O200_R20_C100_opt_1.txt")
-    instance::Instance = Instance(mat, 0.25)
-    instance.Lmax = Lmax
+function EM_GR(instance_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt")
+    instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
+    Lmax = instance.Lmax
+    O = instance.nbOut
+    R = instance.nbRoute
 
-    glob_s = Session(Lmax, instance.route)
+    start = time()
+    sol_BFD_EmptyMove       = BFD_EmptyMove(instance.route, Lmax, O, R)
+    time_BFD_EmptyMove      = round(time() - start, digits=3)
 
-    rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env, [10., .1, 1.])
+    start = time()
+    sol_BFD_GreadyRebuild   = BFD_GreadyRebuild(instance.route, Lmax, O, R)
+    time_BFD_GreadyRebuild  = round(time() - start, digits=3)
+
+    println("$(ANSI_cyan) ==========< Solution BFD EMPTY-MOVE     ($(length(sol_BFD_EmptyMove)) Session(s) in $(time_BFD_EmptyMove)s, valid?= $(isSolutionValid(instance, sol_BFD_EmptyMove, false))) >========== $(ANSI_reset)")
+    println("$sol_BFD_EmptyMove\n\n")
+
+    println("$(ANSI_cyan) ==========< Solution BFD GREADY REBUILD ($(length(sol_BFD_GreadyRebuild)) Session(s) in $(time_BFD_GreadyRebuild)s, valid?= $(isSolutionValid(instance, sol_BFD_GreadyRebuild, false))) >========== $(ANSI_reset)")
+    println("$sol_BFD_GreadyRebuild\n\n")
+end
+
+function getStdInstance(inst_name::String = "instanceChunk_1_O200_R20_C100_opt_1.txt")
+    i, _ = parseAnyInstance(inst_name)
+
+    all_mail = []
+    for r in i.route
+        all_mail = [all_mail; collect(r.mail)]
+    end
+
+    return std(all_mail)
 end

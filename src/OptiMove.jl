@@ -151,7 +151,7 @@ end
 # ijshift_V1! but faster
 function ijshift_V2(
         s       ::Session       ,     # Session to edit
-        r       ::Route{N}         ,     # index of the route
+        r       ::Route{N}      ,     # index of the route
         f       ::Int64         ,     # position of the most loaded letter in the route
         e       ::Int64         ,     # position of the least loaded empty spot in the route
     ) where N
@@ -314,7 +314,7 @@ function Neighbor_V2!(
     newFit          ::Union{Float64, Nothing}   = nothing                   # fitness of a new session
 
     for rId=1:R
-        r           ::Route                     = s.route[rId]             # current batch
+        r           ::Route                     = s.route[rId]             # current route
 
         # ==========< Step 2 >==========
         e           ::Union{Nothing, Int64}     = nothing                   # most loaded output of s with a non nul batch in r
@@ -634,7 +634,7 @@ function improvedOptiMove_S1_V1(
         # print("^")
         sc::Session = Neighbor_V1(s, τ, TAG_FitSes)
         compare_1Criteria(sc, s, TAG_FitSes=TAG_FitSes, τ=τ) ? s = sc : (s = sc; keepRunning = false)
-        validSession(s) && (return (s)) # print("!"); 
+        isSessionValid(s) && (return (s)) # print("!"); 
     end
 
     return s
@@ -656,7 +656,7 @@ function improvedOptiMove_S1_V2!(
     while keepRunning
         # print("^")
         s, keepRunning, sFit = Neighbor_V2!(s, τ, TAG_FitSes)
-        validSession(s) && (return (s, sFit, true)) # print("!"); 
+        isSessionValid(s) && (return (s, sFit, true)) # print("!"); 
     end
 
     return s, sFit, false
@@ -678,7 +678,7 @@ function improvedOptiMove_S1_V3!(
     while keepRunning
         # print("^")
         s, keepRunning, sFit = Neighbor_V3!(s, τ, TAG_FitSes)
-        validSession(s) && (return (s, sFit, true)) # print("!"); 
+        isSessionValid(s) && (return (s, sFit, true)) # print("!"); 
     end
 
     return s, sFit, false
@@ -700,7 +700,7 @@ function improvedOptiMove_V1(
     while keepRunning
         # print("^")
         s, keepRunning, sFit = Neighbor_V2!(s, τ, TAG_FitSes)
-        validSession(s) && (return (s, sFit, true)) # print("!"); 
+        isSessionValid(s) && (return (s, sFit, true)) # print("!"); 
     end
 
     # print(">")
@@ -730,7 +730,7 @@ function improvedOptiMove_V1(
             # print("-")
             C -= 1
             ns, _, nsFit = Neighbor_V3(ns, τ2, TAG_FitSes)
-            validSession(ns) && (return (ns, nsFit, true)) # print("!"); 
+            isSessionValid(ns) && (return (ns, nsFit, true)) # print("!"); 
             if nsFit < bsFit
                 keepRunning = C > -N
                 (nsFit < bsFit) && (bsFit = nsFit, bs = ns)
@@ -744,7 +744,7 @@ function improvedOptiMove_V1(
             while keepRunning
                 # print("^")
                 ns, keepRunning, nsFit = Neighbor_V2!(ns, τ, TAG_FitSes)
-                validSession(ns) && (return (ns, nsFit, true)) # print("!"); 
+                isSessionValid(ns) && (return (ns, nsFit, true)) # print("!"); 
                 (nsFit < bsFit) && (bsFit = nsFit; bs = ns)               # new best solution
             end
             C = N
@@ -764,7 +764,7 @@ function improvedOptiMove_V1(
     while keepRunning
         # print("^")
         bs, keepRunning, bsFit = Neighbor_V2!(bs, τ, TAG_FitSes)
-        validSession(bs) && (return (bs, bsFit, true)) # print("!"); 
+        isSessionValid(bs) && (return (bs, bsFit, true)) # print("!"); 
     end
 
     return bs, bsFit, false
@@ -787,7 +787,7 @@ function improvedOptiMove_S1_V4!(
     while keepRunning
         # print("^")
         s, keepRunning, sFit = Neighbor_V4!(s, τ, TAG_FitSes)
-        validSession(s) && (return (s, sFit, true)) #  print("!");
+        isSessionValid(s) && (return (s, sFit, true)) #  print("!");
         i += 1
         (i > 50) && (keepRunning = false)
     end
@@ -812,7 +812,7 @@ function improvedOptiMove_S1_V5!(
     while keepRunning
         # print("^")
         s, keepRunning, sFit = Neighbor_V5(s, τ, TAG_FitSes)
-        validSession(s) && (return (s, sFit, true)) # print("!"); 
+        isSessionValid(s) && (return (s, sFit, true)) # print("!"); 
         i += 1
         (i > 50) && (keepRunning = false)
     end
@@ -837,7 +837,7 @@ function improvedOptiMove_S1_V6!(
     while keepRunning
         # print("^")
         s, keepRunning, sFit = Neighbor_V6!(s, τ, TAG_FitSes)
-        validSession(s) && (return (s, sFit, true)) # print("!");
+        isSessionValid(s) && (return (s, sFit, true)) # print("!");
         (i >= length(s.load)) && (keepRunning = false)
         i += 1
     end
