@@ -486,5 +486,5 @@ end
 # print_comment("display")
 # print_comment("misc")
 # print_comment("lower bound")
-print_comment("bfd-em")
-print_comment("bfd-gr")
+print_comment("1d-bp>gr")
+print_comment("1d-bfd>gr")

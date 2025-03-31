@@ -1312,6 +1312,7 @@ function parseMyInstance_completed(path::String)
     return Lmax, mat, nbSession
 end
 
+
 # ================================================================================= #
 #           ######    #####   #######   ######   ######   #####   ##    #           #
 #           #     #  #     #     #     #        #        #     #  # #   #           #
@@ -1323,6 +1324,8 @@ end
 function parseOptiInstance(path::String)
     
     file = open(path,"r")
+
+    _ = readline(file) # ""
     numberOfOutputs = parse(Int64, readline(file))
     numberOfRoutes = parse(Int64, readline(file))
     numberOfSessions = parse(Int64, readline(file))

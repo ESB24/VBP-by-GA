@@ -307,7 +307,7 @@ function BFD_GreadyRebuild(
                         new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
                         push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
-                        new_session, added = rebuildSession_knapSack_model_V4!(new_session, tl, env)
+                        new_session, added = rebuildSession_knapSack_model_V3!(new_session, tl, env)
 
                         isSessionValid(new_session) ? print("\x1b[32mo\x1b[0m") : print("\x1b[32m-\x1b[0m")
 
@@ -326,6 +326,242 @@ function BFD_GreadyRebuild(
     end
 
     return S
+end
+
+## ============================================================================================================== ##
+##             /###     ######              ######    ########  ######               ######   #######             ##
+##             # ##     ##    ##            ##    ##  ##        ##    ##    ##      ##        ##    ##            ##
+##               ##     ##     #    ####    #######   #####     ##     #      ##    ##  ###   #######             ##
+##               ##     ##    ##            ##    ##  ##        ##    ##    ##      ##    ##  ##  ##              ##
+##             ######   ######              #######   ##        ######               ######   ##   ##             ##
+## ============================================================================================================== ##
+
+function BF_1D(
+        inst    ::tInstance                                 ; # Instance 
+        lb      ::Union{Int64, Nothing}         = nothing   , # Lower bound
+        order   ::Union{Vector{Int64}, Nothing} = nothing   , # Order to consider items
+    )::Vector{tBin}
+
+    I       ::Vector{tItem} = inst.I                                                    # Set of item to partition
+    C       ::Int64         = inst.C                                                    # Maximum bin capacity
+    order   ::Vector{Int64} = randperm(length(inst.I))                                  # Order to consider item
+    (lb == nothing) && (lb = ceil(Int64, sum([i.size for i::tItem in I]) / C))          # LB on the bin number
+
+    # Solution (set of bin ≡ item partition)
+    sol     ::Vector{tBin}  = tBin[tBin(Vector{tItem}(undef, 0), 0, C) for _=1:lb]
+
+    for k in order
+        i       ::tItem     = inst.I[k] # Current Item
+        added   ::Bool      = false     # Is the current item inserted into a bin ?
+        b_id    ::Int64     = 1         # Current session id
+        
+        sort!(sol, by=(x -> -x.L))
+
+        while !added
+            if b_id ≤ length(sol)
+                b::tBin = sol[b_id]     # Current bin
+
+                if i.size + b.L ≤ C
+                    # Insert item in the current bin
+                    push!(b.I, i)
+                    b.L += i.size
+
+                    added = true
+                else
+                    # Pass to the next bin
+                    b_id += 1
+                end
+            else
+                # Open a new bin
+                push!(sol, tBin([i], i.size, C))
+
+                added = true
+            end
+        end
+    end
+
+    return sol
+end
+
+function BF_1D(I::Vector{Int64}, C::Int64)::Vector{tBin}
+    return BF_1D(tInstance(enumerate(I), C))
+end
+
+function BFD_1D(inst::tInstance)::Vector{tBin}
+    return BF_1D(inst, order=(sortperm(inst.I, by=(x -> x.size))))
+end
+
+function BFD_1D(I::Vector{Int64}, C::Int64)::Vector{tBin}
+    return BFD_1D(tInstance([tItem(id, size) for (id, size) in enumerate(I)], C))
+end
+
+function BFD_1D_into_GreadyRebuild(
+        Routes  ::Vector{Route}             , # Routes of the instance
+        Lmax    ::Int64                     , # Maximum capacity of an output
+        O       ::Int64 = nothing           , # Number of output of each session
+        R       ::Int64 = nothing           , # Number of route to sort
+        tl      ::Int64 = 10                , # Time limit
+        env     ::Gurobi.Env = Gurobi.Env() , # Gurobi environement (for display purpose)
+    )::Tuple{Vector{Session}, Bool}
+
+
+    (R == nothing) && (R = length(Routes))
+    (O == nothing) && (O = length(Routes[1].assignment))
+
+    sol_relax::Vector{tBin} = BFD_1D([sum(r.mail) for r in Routes], Lmax * O)
+
+    sol::Vector{Session} = Vector{Session}(undef, length(sol_relax))
+
+    valid::Bool = true
+
+    # println(sol_relax)
+
+    for (s_id::Int64, b::tBin) in enumerate(sol_relax)
+
+        # println("b $s_id -> $b")
+        ses = Session(Lmax, Route[Routes[i.id] for i in b.I])
+
+        ses, valid = rebuildSession_knapSack_model_V3!(ses, tl, env)
+
+        if valid
+            sol[s_id] = ses
+        else
+            break
+        end
+    end
+
+    return (sol, valid)
+end
+
+## ============================================================================================================== ##
+##                  /###     ######              ######    #######              ######   #######                  ##
+##                  # ##     ##    ##            ##    ##  ##    ##    ##      ##        ##    ##                 ##
+##                    ##     ##     #    ####    #######   #######       ##    ##  ###   #######                  ##
+##                    ##     ##    ##            ##    ##  ##          ##      ##    ##  ##  ##                   ##
+##                  ######   ######              #######   ##                   ######   ##   ##                  ##
+## ============================================================================================================== ##
+
+function setup_1DBP(
+        V   ::Vector{Int64}                                 , 
+        C   ::Int64                                         ; 
+        env ::Gurobi.Env                    = Gurobi.Env()  , 
+        tl  ::Int64                         = 10            ,
+        sol ::Union{Vector{tBin}, Nothing}  = nothing       ,
+    )::Union{Vector{tBin}, Nothing}
+
+    len_I::Int64 = length(V)
+    UB  ::Int64 = (sol == nothing) ? (len_I) : (length(sol))
+
+    I = collect(1:len_I)
+    B = collect(1:UB)
+
+    md = Model(() -> Gurobi.Optimizer(env))
+    set_silent(md)
+    set_optimizer_attribute(md, "OutputFlag", 0)
+    set_optimizer_attribute(md, "TimeLimit", tl)
+
+    # x[i, b] ∈ {0, 1}, equals 1 iff item i is in bin b, 0 otherwise.
+    @variable(md, x[i in I, b in B], Bin)
+    
+    # y[b] ∈ {0, 1}, equals 1 iff bin b is open, 0 otherwise.
+    @variable(md, y[b in B], Bin)
+
+    # OBJ: minimise the number of opened bin
+    @objective(md, Min, sum(y)) 
+
+    # CST 1: Each item mus be assigned to a bin
+    for i in I
+        @constraint(md, sum(x[i, :]) == 1)
+    end
+
+    # CST 2: Capacity constraint
+    for b in B
+        @constraint(md, sum([x[i, b] * V[i] for i in I]) ≤ C * y[b])
+    end
+
+    # CST 3: open bin b before b+1 (to break symetrie)
+    for b in B[1:end-1]    
+        @constraint(md, y[b] >= y[b+1])
+    end 
+
+    if sol != nothing
+        for b in B
+            for i in sol[b].I
+                set_start_value(x[i.id, b], 1)
+            end
+            set_start_value(y[b], 1)
+        end
+    end
+
+    optimize!(md)
+
+    if termination_status(md) == MOI.OPTIMAL
+        x = round.(Int64, value.(md[:x]))
+        y = round.(Int64, value.(md[:y]))
+
+        obj = sum(y)
+        sol = Vector{tBin}(undef, round(Int64, obj))
+
+        println(x)
+        println(y)
+        println("obj -> $obj, $(sum(y)), $(y[1])")
+
+        for b=1:obj
+            sol[b] = tBin([tItem(i, V[i]) for i in I if (x[i, b] == 1)], sum([x[i, b] * V[i] for i in I]), C)
+        end
+
+        println(sol)
+
+        return sol
+    else
+        return nothing
+    end
+end
+
+function BP_1D_into_GreadyRebuild(
+        Routes  ::Vector{Route}             , # Routes of the instance
+        Lmax    ::Int64                     , # Maximum capacity of an output
+        O       ::Int64 = nothing           , # Number of output of each session
+        R       ::Int64 = nothing           , # Number of route to sort
+        tl      ::Int64 = 100               , # Time limit
+        env     ::Gurobi.Env = Gurobi.Env() , # Gurobi environement (for display purpose)
+    )::Tuple{Vector{Session}, Bool}
+
+
+    (R == nothing) && (R = length(Routes))
+    (O == nothing) && (O = length(Routes[1].assignment))
+
+    relaxed_instance    ::Vector{Int64} = [sum(r.mail) for r in Routes]
+    sol_heuristic_relax ::Vector{tBin}  = BFD_1D(relaxed_instance, Lmax * O)
+
+    sol_relax::Vector{tBin} = setup_1DBP(relaxed_instance, Lmax * O, sol=sol_heuristic_relax, tl=tl, env=env)
+
+    # println(sol_heuristic_relax)
+    # println(sol_relax)
+
+    (sol_relax == nothing) && (sol_relax = sol_heuristic_relax)
+
+    sol::Vector{Session} = Vector{Session}(undef, length(sol_relax))
+
+    valid::Bool = true
+
+    println(sol_relax)
+
+    for (s_id::Int64, b::tBin) in enumerate(sol_relax)
+
+        ses = Session(Lmax, Route[Routes[i.id] for i in b.I])
+
+        ses, valid = rebuildSession_knapSack_model_V3!(ses, tl, env)
+        # println("b $s_id -> $b , rebuild success ? -> $valid")
+
+        if valid
+            sol[s_id] = ses
+        else
+            break
+        end
+    end
+
+    return (sol, valid)
 end
 
 

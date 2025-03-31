@@ -27,6 +27,48 @@ mutable struct Instance
 end
 
 # ================================================== #
+#                    1D-relax/CG                     #
+# ================================================== #
+
+struct tItem
+    id      ::Int64     # Item id
+    size    ::Int64     # Item size
+end
+
+mutable struct tBin
+    I       ::Vector{tItem} # Set of item in the bin
+    L       ::Int64         # Current Load of the bin
+    C       ::Int64         # Capacity of the bin
+end
+
+function Base.show(io::IO, b::tBin)
+    print(io, "(BIN - I:$(join(["<$(i.id)-$(i.size)>" for i in b.I], ",")), L=$(b.L)/$(b.C))")
+end
+
+function Base.show(io::IO, sol::Vector{tBin})
+    println(io, "SOLUTION: (#BIN = $(length(sol)))")
+    for b in sol
+        println(io, b)
+    end
+end
+
+struct tInstance
+    I       ::Vector{tItem} # Set of item 
+    C       ::Int64         # Capacity of each bin
+end
+
+struct tColumn
+    v::Float64
+    a::BitArray
+    b::tBin
+end
+
+mutable struct t
+    v::Float64
+    𝓛v::Vector{Base.RefValue{tColumn}}
+end
+
+# ================================================== #
 #                         GA                         #
 # ================================================== #
 

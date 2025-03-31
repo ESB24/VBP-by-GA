@@ -1,7 +1,7 @@
 fd_verbose = open("../debug/verbose_out.txt", "a+")
 
 global VERBOSE              = false
-global VERBOSE_IO           = stdout                    # Default = stdout
+global VERBOSE_IO           = fd_verbose                    # Default = stdout
 global VERBOSE_IO_IS_STDOUT = (VERBOSE_IO == stdout)
 
 # ==============================< ANSI Escape Codes >==============================

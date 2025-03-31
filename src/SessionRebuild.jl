@@ -721,7 +721,7 @@ end
 
 
 global REBUILD_WEIGHT       = 2 # 1-2
-global REBUILD_MODEL        = 1 # 1-2
+global REBUILD_MODEL        = 3 # 1-2-3
 global REBUILD_BACKTRACK    = 2 # 0-1-2
 
 mutable struct tRebuildV4_output
@@ -835,9 +835,9 @@ function setup_O1KP_V4(
         @constraint(model, sum([x[r] * V[r] for r in M]) ≤ C)
 
         # CST (2/2): Required mail volume cst
-        if (0 < Required)
-            @constraint(model, Required ≤ sum([x[r] * V[r] for r in M]))
-        end
+        # if (0 < Required)
+        #     @constraint(model, Required ≤ sum([x[r] * V[r] for r in M]))
+        # end
 
         print_verbose("<cst1>", ANSI_green)
     elseif REBUILD_MODEL == 2
@@ -864,6 +864,15 @@ function setup_O1KP_V4(
         end
 
         print_verbose("<cst2>", ANSI_green)
+    elseif REBUILD_MODEL == 3
+        m = maximum(V)
+        b = maximum([B[r] - J[r] > 0 ? B[r] - J[r] : 1 for r=1:length(R)])
+
+        @variable(model, x[r in R], Bin)
+
+        @objective(model, Max, sum([x[r] * (V[r] + (delta1/(length(δ) * length(R))) * ((B[r]-J[r]) / (b+1)) + (delta2/(length(δ) * length(R))) * (V[r]/(m+1))^2) for r in R])) 
+
+        @constraint(model, sum([x[r] * V[r] for r in R]) <= C)
     end
 
     return model
@@ -889,15 +898,15 @@ function update_01KP_V4!(
     )
     solution = value.(model[:x])
 
-    # w::Vector{Float64}   = compute_weight(M, B, V, J, δ)
+    w::Vector{Float64}   = compute_weight(M, B, V, J, δ)
 
-    # if REBUILD_MODEL == 1
-    #     # OBJ (1/1): Maximize ~ mail volume (∈ ℕ) mail selection (∈ [0, 1[) 
-    #     @objective(model, Max, sum([model[:x][r] * w[i] for (i, r) in enumerate(M)]))
-    # elseif REBUILD_MODEL == 2
-    #     # OBJ (1/1): Maximize ~ mail volume (∈ [0, 1]), use big mail (∈ [0, 1]), mail with fullest route (∈ [0, 1]) -> weighted using δ
-    #     @objective(model, Max, sum([model[:x][r] * w[i] for (i, r) in enumerate(M)]) - model[:P])
-    # end
+    if REBUILD_MODEL == 1
+        # OBJ (1/1): Maximize ~ mail volume (∈ ℕ) mail selection (∈ [0, 1[) 
+        @objective(model, Max, sum([model[:x][r] * w[i] for (i, r) in enumerate(M)]))
+    elseif REBUILD_MODEL == 2
+        # OBJ (1/1): Maximize ~ mail volume (∈ [0, 1]), use big mail (∈ [0, 1]), mail with fullest route (∈ [0, 1]) -> weighted using δ
+        @objective(model, Max, sum([model[:x][r] * w[i] for (i, r) in enumerate(M)]) - model[:P])
+    end
 
     @constraint(model, sum([(1 - solution[r]) * model[:x][r] for r in M]) + sum([solution[r] * (1 - model[:x][r]) for r in M]) >= 1)
 
@@ -914,27 +923,32 @@ function update_δ(δ, s, O, k, R, J, B)
         remaining_mails = [remaining_mails; collect(r.mail)]
     end
 
+    std_remaining_mails = std(remaining_mails)
+
     update = false
-    if 12 <= std(remaining_mails)
-        δ[2] += .02 # rand(1:3)/10
+    if 14 ≤ std_remaining_mails
+        δ = [.61, .39]
         update = true 
-    elseif std(remaining_mails) <= 8
-        δ[1] += .02 # rand(1:3)/10
+    elseif 10 ≤ std_remaining_mails ≤ 14
+        δ[2] += 0.002
+        update = true
+    elseif 6 ≤ std_remaining_mails ≤ 10
+        δ[1] += 0.002
+        update = true
+    elseif std_remaining_mails ≤ 6
+        δ = [1., 0.]
         update = true
     end
 
-    # if (sum((B - J)) - (O-k)*R) / R ≥ floor(Int64, (O-k)/5)
-    #     δ[1] += .02 # rand(1:3)/10
-    #     update = true
-    # end
-
-    δ /= sum(δ)
-    if δ[1] <= 0.2
-        δ[1] = 0.2
-        δ[2] = 0.8
-    elseif  δ[2] <= 0.2
-        δ[1] = 0.8
-        δ[2] = 0.2
+    if update
+        δ /= sum(δ)
+        if δ[1] <= 0.2
+            δ[1] = 0.2
+            δ[2] = 0.8
+        elseif  δ[2] <= 0.2
+            δ[1] = 0.8
+            δ[2] = 0.2
+        end
     end
     print_verbose("<δ$(update ? "*" : "")=$(join(round.(δ, digits=3), ","))> ", (ANSI_magenta))
 end
@@ -1091,7 +1105,7 @@ function rebuildSession_knapSack_model_V4!(
         s   ::Session                           , # Rebuilded session
         tl  ::Int64             = 10            , # Time limit to execute the model
         env ::Gurobi.Env        = Gurobi.Env()  , # Gurobi model environement (display purpose)
-        δ   ::Vector{Float64}   = [.61, .39]    , # Weights for model objective
+        δ   ::Vector{Float64}   = [[.61, .39], [.61, .39], [.2, .9]][REBUILD_MODEL], # Weights for model objective
     )
 
     δ /= sum(δ)
