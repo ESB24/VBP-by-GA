@@ -12,6 +12,7 @@
 Read:
   - `Mommessin2023`: "Affinity-aware resource provisioning for long-running applications in shared clusters" (l. 106 of .bib)
   - `Bansal2010`: "A New Approximation Method for Set Covering Problems, with Applications to Multidimensional Bin Packing" (l. 179 of .bib)
+  - Wei2020
 
 ## TODO algorithm
 

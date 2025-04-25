@@ -453,14 +453,14 @@ end
 
 I = 1
 S = 1
-O = 200
+O = 20
 R = 10
 
 # writeInstanceBatterie_Gaussian("TER/data/Gaussian", I, S, R, O, 100, 2, ceil(Int64, 2O/3), 10, 6, 16:20)
 # writeInstanceBatterie_BigBatche("TER/data/BigBatch", I, S, R, O, 60, 2, ceil(Int64, 2O/3), 1:5, 50:55, 1:3)
 # writeInstanceBatterie_Distrib("TER/data/DistribHard", I, S, R, O, 100, 2, ceil(Int64, 2O/3), 15, 40, distrib_1onN)
 
-writeInstanceBatterie_Distrib("TER/data/DistribHard", I, S, R, O, 50, 2, ceil(Int64, 2O/3), 15, 40, distrib_1onN)
+writeInstanceBatterie_Distrib("../data/test/DistribHard", I, S, R, O, 50, 2, ceil(Int64, 2O/3), 15, 40, distrib_1onN)
 
 for O in [20, 40, 100, 200]
     for R in [20, 40, 100, 200, 300, 400]

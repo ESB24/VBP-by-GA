@@ -694,13 +694,13 @@ function generateSolution_Distrib(
 end
 
 function writeSolution_Distrib(path::String, sol::Solution, id::Int64 = 0)
-    O::Int64 = length(sol.sessions[1].loads)
+    O::Int64 = length(sol.sessions[1].load)
     nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
     Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
 
 
-    filename = "instanceDistribHard_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceIndus_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)

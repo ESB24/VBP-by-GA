@@ -70,7 +70,9 @@ end
 function distrib_1onN(O::Int64)
     step = 1/O
 
-    range = 0.01:step:(1.01 - step) # distrib of 1/N in [0.5, 1.5] range
+    start = 0.1
+
+    range = start:step:(start+1 - step) # distrib of 1/N in [start, start+1] range
 
     distrib = 1.0 ./ range
 
