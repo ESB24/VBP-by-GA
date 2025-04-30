@@ -91,22 +91,6 @@ function rebuild1Session(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_
     return glob_s, tag
 end
 
-# begin
-#     cpt = 0
-#     nb_test = 10
-#     total_time = 0.
-#     for i=1:nb_test
-#         start = time()  
-#         _, tag = rebuild1Session("instanceSkewed_$(i)_O200_R20_C60_opt_1.txt")
-#         total_time +=  time() - start 
-#         sleep(5) 
-#         tag && (cpt += 1)
-#     end
-#     global VERBOSE = true
-#     println_verbose("optimal = $cpt/$nb_test took in average $(round(total_time/nb_test, digits=3))", ANSI_cyan)
-#     global VERBOSE = false
-# end
-
 function EM_GR(instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt")
     instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
     Lmax = instance.Lmax
@@ -180,7 +164,7 @@ end
 function RunSA_V2(inst_name::String = "instanceIndus_1_O200_R30_C40_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
     instance, nbSession = parseAnyInstance(inst_name)
 
-    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+    glob_s = randomSession()# shuffle!(Session(instance.Lmax, instance.route)))
 
     s, flag, res = SimulatedAnnealing_V2(glob_s)
 

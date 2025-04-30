@@ -897,6 +897,49 @@ function EmptyMove(
     return (newLoad, newAssignment, valid)
 end
 
+function EmptyMove(
+        s       ::Session               ,     # Session to edit
+        r       ::Route{N}              ;     # index of the Route
+        τ       ::Float64       = 0.0   ,
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    ) where N
+
+    e::Int64 = findall(iszero, r.assignment)[argmin(map(k -> s.load[k], findall(iszero, r.assignment)))]    # least loaded empty output
+    f::Int64 = findall(!iszero, r.assignment)[argmax(map(k -> s.load[k], findall(!iszero, r.assignment)))]    # least loaded empty output
+    range::StepRange{Int64, Int64} = (e<f) ? ((e+1):f) : ((e-1):-1:f)           # interval from e to f
+
+    newPos          ::Int64         = e                         # ne position for moved mail
+    newAssignment   ::Vector{Int64} = deepcopy(r.assignment)    # updated positions
+    newLoad         ::Vector{Int64} = deepcopy(s.load)          # updated loads
+
+    valid::Bool = true
+
+    # println("$e, $f, $range", ANSI_cyan)
+
+    for oldPos = range
+        if newAssignment[oldPos] != 0
+            newAssignment[newPos] = newAssignment[oldPos]
+
+            if (newLoad[oldPos] <= s.Lmax) && (newLoad[newPos] <= s.Lmax) && (newLoad[newPos] + newAssignment[oldPos] > s.Lmax)
+                # a constraint violation has been created from valid position
+                valid = false
+                # break
+            end
+
+            newLoad[newPos] += newAssignment[newPos]
+            newLoad[oldPos] -= newAssignment[newPos]
+            
+            newPos = oldPos
+        end
+    end
+
+    newAssignment[f] = 0
+
+    # print_verbose("<EM $(valid ? "V" : "X") - f=$f to e=$e >", valid ? ANSI_green : ANSI_red)
+
+    return (newLoad, newAssignment, valid)
+end
+
 function EmptyMoveNeighborhood_cascade(
         s       ::Session                                       ;   # Session to edit
         τ       ::Float64                   = 0.0               ,   # Fault tolerance
@@ -988,151 +1031,20 @@ function EmptyMoveNeighborhood_randDistrib(
     return s, movement
 end
 
-function SimulatedAnnealing(
-        s_init  ::Session                                               ;   # initial solution
-        T       ::Float64                   = Float64(s_init.Lmax / 5)  ,   # initial temperature
-        Tlow    ::Float64                   = .01                       ,   # initial temperature
-        α       ::Float64                   = 0.98                      ,   # cooling ratio
-        Emax    ::Int64                     = length(s_init.load)       ,   # maximum number of epochs
-        Mmax    ::Int64                     = length(s_init.load)       ,   # maximum number of moves per epoch
-        τ       ::Float64                   = 0.0                       ,   # Fault tolerance
-        obj     ::Type{<:FitnessSession}    = OverloadVolume                   ,   # regarded objective
-    )
-
-    Lmax = s_init.Lmax
-
-    τ_T     = .2 # 30 % error on output
-    T       = fitness(s_init, obj) * τ_T
-    # τ_Tlow  = .001 # 1 % error on output
-    Tlow    = fitness(s_init, obj) * .05
-
-    i = 1 # iter in epoch
-    j = 1 # current epoch
-    s_best      = deepcopy(s_init) # best solution
-    s_current   = deepcopy(s_init) # current solution
-
-    nogood = 0
-
-    # Stat
-    Tmp_EmpochAccept = 0
-    Tmp_EmpochAttempt = 0
-    Acceptance_ratio = zeros(Float64, Emax)
-
-    empoch_best = zeros(Float64, Emax)
-    empoch_current = zeros(Float64, Emax)
-    empoch_best_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
-    empoch_worst_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
-
-    empoch_selected_best_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
-    empoch_selected_worst_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
-
-    all_T::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
-
-    nogood = 0
-
-    while true
-        if i > Mmax
-            if j < Emax
-                empoch_best[j] = fitness(s_best, obj)
-                empoch_current[j] = fitness(s_current, obj)
-                Acceptance_ratio[j] = Tmp_EmpochAccept/Tmp_EmpochAttempt
-                all_T[j] = T
-                j += 1
-                
-                Tmp_EmpochAttempt = 0
-                Tmp_EmpochAccept = 0
-                i = 1
-                
-                T *= α
-
-                Tlow    = fitness(s_current, obj) * .001
-
-                if T < Tlow
-                    #if nogood >= length(s_init.load)/4                    
-                        τ_T     *= 0.75 # 30 % error on output
-                        T       = fitness(s_init, obj) * τ_T
-
-                        α -= .01 
-                        nogood = 0
-                    #end
-                end
-            else
-                empoch_best[j] = fitness(s_best, obj)
-                empoch_current[j] = fitness(s_current, obj)
-                all_T[j] = T
-                return s_best, false, Acceptance_ratio, [empoch_best, empoch_best_star, empoch_worst_star, empoch_current, empoch_selected_best_star, empoch_selected_worst_star, all_T]
-            end
-        else
-            s_star, _ = EmptyMoveNeighborhood_cascade(s_current, τ=τ, obj=obj)
-
-            if empoch_best_star[j] == nothing || fitness(s_star, obj) <= empoch_best_star[j]
-                empoch_best_star[j] = fitness(s_star, obj)
-            end
-            if empoch_worst_star[j] == nothing || fitness(s_star, obj) >= empoch_worst_star[j]
-                empoch_worst_star[j] = fitness(s_star, obj)
-            end
-
-            if isSessionValid(s_star)
-                return s_star, true, Acceptance_ratio, [empoch_best, empoch_best_star, empoch_worst_star, empoch_current, empoch_selected_best_star, empoch_selected_worst_star, all_T]
-            end
-
-            if fitness(s_star, obj) < fitness(s_best, obj)    # computed solution better than best solution
-                println_verbose("< update best from $(fitness(s_best, obj)) to $(fitness(s_star, obj))>", ANSI_magenta)
-                s_best = s_star         # update best solution
-            end
-            
-            if fitness(s_star, obj) ≤ fitness(s_current, obj) # computed solution better or equal to current solution
-                println_verbose("< update current from $(fitness(s_current, obj)) to $(fitness(s_star, obj))>", ANSI_magenta)
-                s_current = s_star      # update current solution
-
-                if empoch_selected_best_star[j] == nothing || fitness(s_star, obj) <= empoch_selected_best_star[j]
-                    empoch_selected_best_star[j] = fitness(s_star, obj)
-                end
-                if empoch_selected_worst_star[j] == nothing || fitness(s_star, obj) >= empoch_selected_worst_star[j]
-                    empoch_selected_worst_star[j] = fitness(s_star, obj)
-                end
-            else
-                Δ = fitness(s_star, obj) - fitness(s_current, obj)
-                print("<obj s*=$(round(fitness(s_star, obj), digits=2)), sc=$(round(fitness(s_current, obj), digits=2)), Δ=$Δ, T=$T, exp(-Δ/T) = $(exp(-Δ/T))> ")
-                Tmp_EmpochAttempt += 1
-                if rand() < exp(-Δ/T)
-                    s_current = s_star
-
-                    Tmp_EmpochAccept += 1
-
-                    if empoch_selected_best_star[j] == nothing || fitness(s_star, obj) <= empoch_selected_best_star[j]
-                        empoch_selected_best_star[j] = fitness(s_star, obj)
-                    end
-                    if empoch_selected_worst_star[j] == nothing || fitness(s_star, obj) >= empoch_selected_worst_star[j]
-                        empoch_selected_worst_star[j] = fitness(s_star, obj)
-                    end
-                    nogood = 0
-                else
-                    if T <= Tlow
-                        nogood += 1
-                    end
-                end
-            end
-            
-            i += 1
-        end
-    end
-end
-
 function SimulatedAnnealing_V2(
         s_init          ::Session                                   ; # initial solution
         obj             ::Type{<:FitnessSession} = OverloadVolume   , # regarded objective
         display_plot    ::Bool = true                               , # generate plots
-        display_debug   ::Bool = true                               , # debug info
+        display_state   ::Bool = true                               , # debug info
     )
 
     Lmax    ::Int64     = s_init.Lmax
 
-    τ_T     ::Float64   = 1.                                    # allowed error %
+    τ_T     ::Float64   = 1.5                                   # allowed error %
     T       ::Float64   = fitness(s_init, obj) * .2 * τ_T       # initial temperature
-    τ_Tlow  ::Float64   = .12                                   # allowed error %
+    τ_Tlow  ::Float64   = .2                                    # allowed error %
     Tlow    ::Float64   = fitness(s_init, obj) * .2 * τ_Tlow    # initial temperature
-    α       ::Float64   = 0.99                                  # cooling ratio
+    α       ::Float64   = 0.98                                  # cooling ratio
 
     Emax    ::Int64     = length(s_init.load)*2.                # maximum number of epochs
     j       ::Int64     = 1                                     # current epoch
@@ -1142,46 +1054,55 @@ function SimulatedAnnealing_V2(
     s_best  ::Session   = deepcopy(s_init)                      # best solution
     s_curr  ::Session   = deepcopy(s_init)                      # current solution
 
+    nogood  ::Int64     = 0                                     # number of consecutive rejected solution
+
     # =====< Results tracking >=====
     # [1, 1:Emax]  -> T
     # [2, 1:Emax]  -> Tlow
-    # [3, 1:Emax]  -> obj(s_best)
-    # [4, 1:Emax]  -> best obj(s_curr) of the epoch
-    # [5, 1:Emax]  -> worst obj(s_curr) of the epoch
-    # [6, 1:Emax]  -> best obj(s_star) of the epoch
-    # [7, 1:Emax]  -> worst obj(s_star) of the epoch
-    # [8, 1:Emax]  -> best kept degrading obj(s_star) of the epoch
-    # [9, 1:Emax]  -> worst kept degrading obj(s_star) of the epoch
-    # [10, 1:Emax] -> # of degrading s_star in the epoch
-    # [11, 1:Emax] -> # of used degrading s_star in the epoch
-    # [12, 1:Emax] -> # kept sol obj 
-    # [13, 1:Emax] -> ∑ kept sol obj 
-    res     ::Array{Union{Float64, Nothing}} = Array{Union{Float64, Nothing}}(nothing, 13, Emax)
-    res[4:5, 1] .= fitness(s_init, obj)
-    res[10:end, :] .= 0.
+    # [3, 1:Emax]  -> # kept sol
+    # [4, 1:Emax]  -> ∑ kept sol obj
+    # [5, 1:Emax]  -> # degrading sol
+    # [6, 1:Emax]  -> # kept degrading sol
+    # [7, 1:Emax]  -> ∑ degrading sol obj kept
+    # [8, 1:Emax]  -> obj at 0.6% accept chance regarding average s_curr
+    # [9, 1:Emax] -> obj at 50% accept chance regarding average s_curr
+    # [10, 1:Emax] -> obj(s_best)
+    # [11, 1:Emax] -> worst s* of the eppoch
+    # [12, 1:Emax] -> best s* of the eppoch
+    # [13, 1:Emax] -> s_current at end of epoch
+    resEpoch::Array{Union{Float64, Nothing}} = Array{Union{Float64, Nothing}}(nothing, 13, Emax)
+    resEpoch[1:10, :] .= 0.
+
+    # =====< Results tracking >=====
+    # [1, 1:Emax]  -> s_star
+    # [2, 1:Emax]  -> s_curr
+    # [3, 1:Emax]  -> s_best
+    resIter::Array{Union{Float64, Nothing}} = Array{Union{Float64, Nothing}}(nothing, 3, Emax * Mmax)
 
     while true
         if i > Mmax
-            res[1, j] = T                       # store epoche temperature
-            res[2, j] = Tlow                    # store epoche low temperature
-            res[3, j] = fitness(s_best, obj)    # store epoche obj(s_best)
+            resEpoch[1, j] = T                       # store epoche temperature
+            resEpoch[2, j] = Tlow                    # store epoche low temperature
+            resEpoch[8, j] = 5 * T + (resEpoch[4, j] / resEpoch[3, j])
+            resEpoch[9, j] = .69 * T + (resEpoch[4, j] / resEpoch[3, j])
+            resEpoch[10, j] = fitness(s_best, obj)   # store epoche obj(s_best)
+            resEpoch[13, j] = fitness(s_curr, obj)   # store epoche obj(s_best)
 
+            (display_state) && (print("\x1b[2F\x1b[1GEpoch $(j)/$(Emax):\n - avg kept sol obj: $((resEpoch[3, j] != 0) ? (round(resEpoch[4, j] / resEpoch[3, j], digits=3)) : "∅")          \n - best sol obj: $(round(resEpoch[10, j], digits=3))          "))
+            
             if j < Emax
                 j += 1                                          # next epoch
                 i = 1
                 
                 T *= α                                          # temperature cooling
-                Tlow = fitness(s_best, obj) * .2 * τ_Tlow       # update Tlow according to current best sol
+                Tlow = (fitness(s_curr, obj) - fitness(s_best, obj)) * .2 * τ_Tlow       # update Tlow according to current best sol
 
-                if T < Tlow                                     # temperature is too low
+                if nogood >= 2 * Mmax                           # temperature is too low
                     τ_T *= 0.75                                 # -75 % of temperature from previous setting
                     T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
 
                     α -= .01                                    # increase cooling ration
                 end
-
-                ((res[4, j] === nothing) || (res[4, j] > fitness(s_curr, obj))) && (res[4, j] = fitness(s_curr, obj))
-                ((res[5, j] === nothing) || (res[5, j] < fitness(s_curr, obj))) && (res[5, j] = fitness(s_curr, obj))
             else
                 break
             end
@@ -1189,8 +1110,8 @@ function SimulatedAnnealing_V2(
             s_star, _ = EmptyMoveNeighborhood_randOrder(s_curr, obj=obj) # movement in neighborhood
             s_star, _ = EmptyMoveNeighborhood_randDistrib(s_star, obj=obj) # movement in neighborhood
 
-            ((res[6, j] === nothing) || (res[6, j] > fitness(s_star, obj))) && (res[6, j] = fitness(s_star, obj))
-            ((res[7, j] === nothing) || (res[7, j] < fitness(s_star, obj))) && (res[7, j] = fitness(s_star, obj))
+            ((resEpoch[11, j] === nothing) || (resEpoch[11, j] > fitness(s_star, obj))) && (resEpoch[11, j] = fitness(s_star, obj))
+            ((resEpoch[12, j] === nothing) || (resEpoch[12, j] < fitness(s_star, obj))) && (resEpoch[12, j] = fitness(s_star, obj))
 
             if fitness(s_star, obj) < fitness(s_best, obj)  # computed solution better than best solution
                 s_best = s_star                             # update best solution
@@ -1199,23 +1120,25 @@ function SimulatedAnnealing_V2(
             Δ = fitness(s_star, obj) - fitness(s_curr, obj)
             if (Δ ≤ 0) || (rand() < exp(-Δ/T))
                 s_curr = s_star
+                nogood = 0
 
-                res[12, j] += 1.
-                res[13, j] += fitness(s_star, obj)
-
-                ((res[4, j] === nothing) || (res[4, j] > fitness(s_curr, obj))) && (res[4, j] = fitness(s_curr, obj))
-                ((res[5, j] === nothing) || (res[5, j] < fitness(s_curr, obj))) && (res[5, j] = fitness(s_curr, obj))
+                resEpoch[3, j] += 1.
+                resEpoch[4, j] += fitness(s_star, obj)
 
                 if (Δ > 0)
-                    res[11, j] += 1.
-                    ((res[8, j] === nothing) || (res[8, j] > fitness(s_star, obj))) && (res[8, j] = fitness(s_star, obj))
-                    ((res[9, j] === nothing) || (res[9, j] > fitness(s_star, obj))) && (res[9, j] = fitness(s_star, obj))
+                    resEpoch[6, j] += 1.
+                    resEpoch[7, j] += fitness(s_star, obj)
                 end
+            else
+                nogood += 1
             end
             if (Δ > 0)
-                res[10, j] += 1.
+                resEpoch[5, j] += 1.
             end
-            
+
+            resIter[1, (j-1)*Emax + i] = fitness(s_star, obj)
+            resIter[2, (j-1)*Emax + i] = fitness(s_curr, obj)
+            resIter[3, (j-1)*Emax + i] = fitness(s_best, obj)
 
             if isSessionValid(s_star) # feasibility check
                 break
@@ -1226,25 +1149,38 @@ function SimulatedAnnealing_V2(
     end
 
     if display_plot
-        replace!(res, nothing=>0.)
+        replace!(resEpoch, nothing=>0.)
+        replace!(resIter, nothing=>0.)
 
         x = 1:Emax
 
-        p1 = plot(x, [res[1, :], res[2, :]], lc=["blue" "cyan"], lw=1.5, title="Temperature", label=["T" "Tlow"])
+        p1 = plot(x, resEpoch[1, :], lc="blue", lw=1.5, title="Temperature", label="T")
+        # plot!(x, resEpoch[2, :], lc="cyan", lw=1.5, label="Tlow")
+        (isSessionValid(s_best)) && (plot!([j, j], [minimum(resEpoch[1, :]), maximum(resEpoch[1, :])], lc="black", lw=1.5, label="opt reached"))
 
-        p2 = plot(x, res[11, :] ./ res[10, :] .* 100, title = "Acceptance ratio", label="% of used degrading sol", lw=2)
+        p2 = plot(x, resEpoch[6, :] ./ resEpoch[5, :] .* 100, title = "Acceptance ratio", label="% of degrading sol used", lw=2)
+        plot!(x, resEpoch[3, :] ./ Emax .* 100, label="% of sol used", lw=2)
+        # plot!(x, resEpoch[5, :] ./ Emax .* 100, label="% of degrading sol", lw=2)
+        (isSessionValid(s_best)) && (plot!([j, j], [minimum(resEpoch[6, :] ./ resEpoch[5, :] .* 100), maximum(resEpoch[6, :] ./ resEpoch[5, :] .* 100)], lc="black", lw=1.5, label="opt reached"))
 
         x = 2:Emax
-        p3 = plot(title="Solutions", label="valid sol threshold")
-        # plot!(x, [res[6, 2:end] res[7, 2:end]], fillrange = Vector{Float64}(res[7, 2:end]), fa = .3, fc="blue", lc="blue", lw=1.5, label=["range of s* values" ""])
-        # plot!(x, [res[8, 2:end] res[9, 2:end]], fillrange = Vector{Float64}(res[9, 2:end]), fa = .3, fc="cyan", lc="cyan", lw=1.5, label=["range of used degrading s* values" ""])
-        plot!(x, [res[4, 2:end], res[5, 2:end]], fillrange = Vector{Float64}(res[5, 2:end]), fa = .3, fc="green", lc="green", lw=1.5, label=["range of s_curr values" ""])
-        plot!(x, res[13, 2:end] ./ res[12, 2:end], lc="blue", lw=1.5, label="avg kept s*")
-        plot!(x, res[3, 2:end], lc="purple", lw=1.5, label="s_best")
+        p3 = plot(title="Avg epoch solutions", label="valid sol threshold")
+        plot!(x, [resEpoch[11, 2:end], resEpoch[12, 2:end]], fillrange = Vector{Float64}(resEpoch[12, 2:end]), fa = .1, fc="blue", lc="blue", lw=1.5, label=["range of s* values" ""])
+        plot!(x, [resEpoch[9, 2:end], (resEpoch[4, 2:end] ./ resEpoch[3, 2:end])], fillrange = Vector{Float64}((resEpoch[4, 2:end] ./ resEpoch[3, 2:end])), fa = .3, fc="orange", lc="orange", lw=1.5, label=["obj with [50, 100]% acceptation chance" ""])
+        plot!(x, resEpoch[4, 2:end] ./ resEpoch[3, 2:end], lc="green", lw=1.5, label="avg s* kept")
+        # plot!(x, resEpoch[13, 2:end], lc="brown", lw=1.5, label="s_curr at end of epoch")
+        plot!(x, resEpoch[10, 2:end], lc="purple", lw=1.5, label="s_best")
+        (isSessionValid(s_best)) && (plot!([j, j], [minimum(resEpoch[10, 2:end]), maximum(resEpoch[11, 2:end])], lc="black", lw=1.5, label="opt reached"))
 
-        display(plot(p1, p2, p3, layout=(3,1), size = (1200, 1200)))
+        x = Mmax:(Emax*Mmax)
+        p4 = plot(x, [resIter[1, Mmax:end] resIter[2, Mmax:end] resIter[3, Mmax:end]], lw=1.5, title="Iter solutions", label=["s*" "s_curr" "s_best"])
+        (isSessionValid(s_best)) && (plot!([j, j], [minimum(resIter[3, Mmax:end]), maximum(resIter[1, Mmax:end])], lc="black", lw=1.5, label="opt reached"))
+
+
+        display(plot(p1, p2, p3, p4, layout=(4,1), size = (1200, 1600)))
     end
 
-    return s_best, isSessionValid(s_best), res
+    return s_best, isSessionValid(s_best), (resEpoch, resIter)
 end
+
 
