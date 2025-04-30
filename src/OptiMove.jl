@@ -573,7 +573,7 @@ function Neighbor_V6!(
     )
     # ==========< Step 1 >==========
 
-    R               ::Int64                     = length(s.route)          # number of route in the session
+    R               ::Int64                     = length(s.route)           # number of route in the session
     edit            ::Bool                      = false                     # true if we change s (made a copy of it)
     sFit            ::Float64                   = fitness(s, TAG_FitSes)    # fitness of the current session
     newFit          ::Union{Float64, Nothing}   = nothing                   # fitness of a new session
@@ -844,3 +844,407 @@ function improvedOptiMove_S1_V6!(
 
     return s, sFit, false
 end
+
+## ============================================================================================================== ##
+##       ########  ##    ##  #######   ########  ##    ##            ##    ##   ######   ##    ##  ########       ##
+##       ##        ###  ###  ##    ##     ##      ##  ##             ###  ###  ##    ##  ##    ##  ##             ##
+##       #####     ## ## ##  #######      ##        ##               ## ## ##  ##    ##   ##  ##   #####          ##
+##       ##        ##    ##  ##           ##        ##               ##    ##  ##    ##   ##  ##   ##             ##
+##       ########  ##    ##  ##           ##        ##               ##    ##   ######      ##     ########       ##
+## ============================================================================================================== ##
+
+
+function EmptyMove(
+        s       ::Session               ,     # Session to edit
+        r       ::Route{N}              ;     # index of the Route
+        τ       ::Float64       = 0.0   ,
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    ) where N
+    
+    e::Int64 = findall(iszero, r.assignment)[argmin(map(k -> s.load[k], findall(iszero, r.assignment)))]    # least loaded empty output
+    f::Int64 = findall(!iszero, r.assignment)[argmax(map(k -> s.load[k], findall(!iszero, r.assignment)))]    # least loaded empty output
+    range::StepRange{Int64, Int64} = (e<f) ? ((e+1):f) : ((e-1):-1:f)           # interval from e to f
+    
+    newPos          ::Int64         = e                         # ne position for moved mail
+    newAssignment   ::Vector{Int64} = deepcopy(r.assignment)    # updated positions
+    newLoad         ::Vector{Int64} = deepcopy(s.load)          # updated loads
+
+    valid::Bool = true
+
+    # println("$e, $f, $range", ANSI_cyan)
+
+    for oldPos = range
+        if newAssignment[oldPos] != 0
+            newAssignment[newPos] = newAssignment[oldPos]
+
+            if (newLoad[oldPos] <= s.Lmax) && (newLoad[newPos] <= s.Lmax) && (newLoad[newPos] + newAssignment[oldPos] > s.Lmax)
+                # a constraint violation has been created from valid position
+                valid = false
+                # break
+            end
+
+            newLoad[newPos] += newAssignment[newPos]
+            newLoad[oldPos] -= newAssignment[newPos]
+            
+            newPos = oldPos
+        end
+    end
+    
+    newAssignment[f] = 0
+
+    # print_verbose("<EM $(valid ? "V" : "X") - f=$f to e=$e >", valid ? ANSI_green : ANSI_red)
+    
+    return (newLoad, newAssignment, valid)
+end
+
+function EmptyMoveNeighborhood_cascade(
+        s       ::Session                                       ;   # Session to edit
+        τ       ::Float64                   = 0.0               ,   # Fault tolerance
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
+    s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+
+    # print_verbose("<EMN Cascade { ", ANSI_cyan)
+
+    tmpObj = round(fitness(s, obj), digits=3)
+
+    movement::Int64 = 0
+
+    for r in s.route
+        newLoad, newAssignment, valid = EmptyMove(s, r, τ=τ, obj=obj)
+        if true # valid    # Valid movement
+            s.load          = newLoad       # update session's loads
+            r.assignment    = newAssignment # update route's assignment
+            movement += 1
+        end
+    end
+
+    return s, movement
+end
+
+function EmptyMoveNeighborhood_randOrder(
+        s       ::Session                                       ;   # Session to edit
+        τ       ::Float64                   = 0.0               ,   # Fault tolerance
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
+    s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+
+    # print_verbose("<EMN Cascade { ", ANSI_cyan)
+
+    tmpObj = round(fitness(s, obj), digits=3)
+
+    movement::Int64 = 0
+
+    for r_id in randperm(length(s.route))
+        r = s.route[r_id]
+        newLoad, newAssignment, valid = EmptyMove(s, r, τ=τ, obj=obj)
+        if true # valid    # Valid movement
+            s.load          = newLoad       # update session's loads
+            r.assignment    = newAssignment # update route's assignment
+            movement += 1
+        end
+    end
+
+    return s, movement
+end
+
+function EmptyMoveNeighborhood_randDistrib(
+        s       ::Session                                       ;   # Session to edit
+        τ       ::Float64                   = 0.0               ,   # Fault tolerance
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
+    s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+
+    tmpObj = round(fitness(s, obj), digits=3)
+
+    movement::Int64 = 0
+
+    distrib = [Float64(sum(r.mail)) for r in s.route]
+    for k=1:length(s.load)
+        if s.load[k] >= s.Lmax
+            for (r_id, r) in enumerate(s.route)
+                if r.assignment[k] != 0
+                    distrib[r_id] += s.Lmax
+                end
+            end
+        end
+    end
+    distrib ./= sum(distrib)
+    for _=1:length(s.route)
+        valid = true
+        iter = 0
+        while valid && iter < 10
+            r = s.route[rand(Categorical(distrib))]
+            newLoad, newAssignment, valid = EmptyMove(s, r, τ=τ, obj=obj)
+            if true # valid    # Valid movement
+                s.load          = newLoad       # update session's loads
+                r.assignment    = newAssignment # update route's assignment
+                movement += 1
+            end
+            iter += 1
+        end
+    end
+
+    return s, movement
+end
+
+function SimulatedAnnealing(
+        s_init  ::Session                                               ;   # initial solution
+        T       ::Float64                   = Float64(s_init.Lmax / 5)  ,   # initial temperature
+        Tlow    ::Float64                   = .01                       ,   # initial temperature
+        α       ::Float64                   = 0.98                      ,   # cooling ratio
+        Emax    ::Int64                     = length(s_init.load)       ,   # maximum number of epochs
+        Mmax    ::Int64                     = length(s_init.load)       ,   # maximum number of moves per epoch
+        τ       ::Float64                   = 0.0                       ,   # Fault tolerance
+        obj     ::Type{<:FitnessSession}    = OverloadVolume                   ,   # regarded objective
+    )
+
+    Lmax = s_init.Lmax
+
+    τ_T     = .2 # 30 % error on output
+    T       = fitness(s_init, obj) * τ_T
+    # τ_Tlow  = .001 # 1 % error on output
+    Tlow    = fitness(s_init, obj) * .05
+
+    i = 1 # iter in epoch
+    j = 1 # current epoch
+    s_best      = deepcopy(s_init) # best solution
+    s_current   = deepcopy(s_init) # current solution
+
+    nogood = 0
+
+    # Stat
+    Tmp_EmpochAccept = 0
+    Tmp_EmpochAttempt = 0
+    Acceptance_ratio = zeros(Float64, Emax)
+
+    empoch_best = zeros(Float64, Emax)
+    empoch_current = zeros(Float64, Emax)
+    empoch_best_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
+    empoch_worst_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
+
+    empoch_selected_best_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
+    empoch_selected_worst_star::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
+
+    all_T::Vector{Union{Nothing, Float64}} = [nothing for _=1:Emax]
+
+    nogood = 0
+
+    while true
+        if i > Mmax
+            if j < Emax
+                empoch_best[j] = fitness(s_best, obj)
+                empoch_current[j] = fitness(s_current, obj)
+                Acceptance_ratio[j] = Tmp_EmpochAccept/Tmp_EmpochAttempt
+                all_T[j] = T
+                j += 1
+                
+                Tmp_EmpochAttempt = 0
+                Tmp_EmpochAccept = 0
+                i = 1
+                
+                T *= α
+
+                Tlow    = fitness(s_current, obj) * .001
+
+                if T < Tlow
+                    #if nogood >= length(s_init.load)/4                    
+                        τ_T     *= 0.75 # 30 % error on output
+                        T       = fitness(s_init, obj) * τ_T
+
+                        α -= .01 
+                        nogood = 0
+                    #end
+                end
+            else
+                empoch_best[j] = fitness(s_best, obj)
+                empoch_current[j] = fitness(s_current, obj)
+                all_T[j] = T
+                return s_best, false, Acceptance_ratio, [empoch_best, empoch_best_star, empoch_worst_star, empoch_current, empoch_selected_best_star, empoch_selected_worst_star, all_T]
+            end
+        else
+            s_star, _ = EmptyMoveNeighborhood_cascade(s_current, τ=τ, obj=obj)
+
+            if empoch_best_star[j] == nothing || fitness(s_star, obj) <= empoch_best_star[j]
+                empoch_best_star[j] = fitness(s_star, obj)
+            end
+            if empoch_worst_star[j] == nothing || fitness(s_star, obj) >= empoch_worst_star[j]
+                empoch_worst_star[j] = fitness(s_star, obj)
+            end
+
+            if isSessionValid(s_star)
+                return s_star, true, Acceptance_ratio, [empoch_best, empoch_best_star, empoch_worst_star, empoch_current, empoch_selected_best_star, empoch_selected_worst_star, all_T]
+            end
+
+            if fitness(s_star, obj) < fitness(s_best, obj)    # computed solution better than best solution
+                println_verbose("< update best from $(fitness(s_best, obj)) to $(fitness(s_star, obj))>", ANSI_magenta)
+                s_best = s_star         # update best solution
+            end
+            
+            if fitness(s_star, obj) ≤ fitness(s_current, obj) # computed solution better or equal to current solution
+                println_verbose("< update current from $(fitness(s_current, obj)) to $(fitness(s_star, obj))>", ANSI_magenta)
+                s_current = s_star      # update current solution
+
+                if empoch_selected_best_star[j] == nothing || fitness(s_star, obj) <= empoch_selected_best_star[j]
+                    empoch_selected_best_star[j] = fitness(s_star, obj)
+                end
+                if empoch_selected_worst_star[j] == nothing || fitness(s_star, obj) >= empoch_selected_worst_star[j]
+                    empoch_selected_worst_star[j] = fitness(s_star, obj)
+                end
+            else
+                Δ = fitness(s_star, obj) - fitness(s_current, obj)
+                print("<obj s*=$(round(fitness(s_star, obj), digits=2)), sc=$(round(fitness(s_current, obj), digits=2)), Δ=$Δ, T=$T, exp(-Δ/T) = $(exp(-Δ/T))> ")
+                Tmp_EmpochAttempt += 1
+                if rand() < exp(-Δ/T)
+                    s_current = s_star
+
+                    Tmp_EmpochAccept += 1
+
+                    if empoch_selected_best_star[j] == nothing || fitness(s_star, obj) <= empoch_selected_best_star[j]
+                        empoch_selected_best_star[j] = fitness(s_star, obj)
+                    end
+                    if empoch_selected_worst_star[j] == nothing || fitness(s_star, obj) >= empoch_selected_worst_star[j]
+                        empoch_selected_worst_star[j] = fitness(s_star, obj)
+                    end
+                    nogood = 0
+                else
+                    if T <= Tlow
+                        nogood += 1
+                    end
+                end
+            end
+            
+            i += 1
+        end
+    end
+end
+
+function SimulatedAnnealing_V2(
+        s_init          ::Session                                   ; # initial solution
+        obj             ::Type{<:FitnessSession} = OverloadVolume   , # regarded objective
+        display_plot    ::Bool = true                               , # generate plots
+        display_debug   ::Bool = true                               , # debug info
+    )
+
+    Lmax    ::Int64     = s_init.Lmax
+
+    τ_T     ::Float64   = 1.                                    # allowed error %
+    T       ::Float64   = fitness(s_init, obj) * .2 * τ_T       # initial temperature
+    τ_Tlow  ::Float64   = .12                                   # allowed error %
+    Tlow    ::Float64   = fitness(s_init, obj) * .2 * τ_Tlow    # initial temperature
+    α       ::Float64   = 0.99                                  # cooling ratio
+
+    Emax    ::Int64     = length(s_init.load)*2.                # maximum number of epochs
+    j       ::Int64     = 1                                     # current epoch
+    Mmax    ::Int64     = length(s_init.load)*2.                # maximum number of moves per epoch
+    i       ::Int64     = 1                                     # iter in epoch
+    
+    s_best  ::Session   = deepcopy(s_init)                      # best solution
+    s_curr  ::Session   = deepcopy(s_init)                      # current solution
+
+    # =====< Results tracking >=====
+    # [1, 1:Emax]  -> T
+    # [2, 1:Emax]  -> Tlow
+    # [3, 1:Emax]  -> obj(s_best)
+    # [4, 1:Emax]  -> best obj(s_curr) of the epoch
+    # [5, 1:Emax]  -> worst obj(s_curr) of the epoch
+    # [6, 1:Emax]  -> best obj(s_star) of the epoch
+    # [7, 1:Emax]  -> worst obj(s_star) of the epoch
+    # [8, 1:Emax]  -> best kept degrading obj(s_star) of the epoch
+    # [9, 1:Emax]  -> worst kept degrading obj(s_star) of the epoch
+    # [10, 1:Emax] -> # of degrading s_star in the epoch
+    # [11, 1:Emax] -> # of used degrading s_star in the epoch
+    # [12, 1:Emax] -> # kept sol obj 
+    # [13, 1:Emax] -> ∑ kept sol obj 
+    res     ::Array{Union{Float64, Nothing}} = Array{Union{Float64, Nothing}}(nothing, 13, Emax)
+    res[4:5, 1] .= fitness(s_init, obj)
+    res[10:end, :] .= 0.
+
+    while true
+        if i > Mmax
+            res[1, j] = T                       # store epoche temperature
+            res[2, j] = Tlow                    # store epoche low temperature
+            res[3, j] = fitness(s_best, obj)    # store epoche obj(s_best)
+
+            if j < Emax
+                j += 1                                          # next epoch
+                i = 1
+                
+                T *= α                                          # temperature cooling
+                Tlow = fitness(s_best, obj) * .2 * τ_Tlow       # update Tlow according to current best sol
+
+                if T < Tlow                                     # temperature is too low
+                    τ_T *= 0.75                                 # -75 % of temperature from previous setting
+                    T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
+
+                    α -= .01                                    # increase cooling ration
+                end
+
+                ((res[4, j] === nothing) || (res[4, j] > fitness(s_curr, obj))) && (res[4, j] = fitness(s_curr, obj))
+                ((res[5, j] === nothing) || (res[5, j] < fitness(s_curr, obj))) && (res[5, j] = fitness(s_curr, obj))
+            else
+                break
+            end
+        else
+            s_star, _ = EmptyMoveNeighborhood_randOrder(s_curr, obj=obj) # movement in neighborhood
+            s_star, _ = EmptyMoveNeighborhood_randDistrib(s_star, obj=obj) # movement in neighborhood
+
+            ((res[6, j] === nothing) || (res[6, j] > fitness(s_star, obj))) && (res[6, j] = fitness(s_star, obj))
+            ((res[7, j] === nothing) || (res[7, j] < fitness(s_star, obj))) && (res[7, j] = fitness(s_star, obj))
+
+            if fitness(s_star, obj) < fitness(s_best, obj)  # computed solution better than best solution
+                s_best = s_star                             # update best solution
+            end
+            
+            Δ = fitness(s_star, obj) - fitness(s_curr, obj)
+            if (Δ ≤ 0) || (rand() < exp(-Δ/T))
+                s_curr = s_star
+
+                res[12, j] += 1.
+                res[13, j] += fitness(s_star, obj)
+
+                ((res[4, j] === nothing) || (res[4, j] > fitness(s_curr, obj))) && (res[4, j] = fitness(s_curr, obj))
+                ((res[5, j] === nothing) || (res[5, j] < fitness(s_curr, obj))) && (res[5, j] = fitness(s_curr, obj))
+
+                if (Δ > 0)
+                    res[11, j] += 1.
+                    ((res[8, j] === nothing) || (res[8, j] > fitness(s_star, obj))) && (res[8, j] = fitness(s_star, obj))
+                    ((res[9, j] === nothing) || (res[9, j] > fitness(s_star, obj))) && (res[9, j] = fitness(s_star, obj))
+                end
+            end
+            if (Δ > 0)
+                res[10, j] += 1.
+            end
+            
+
+            if isSessionValid(s_star) # feasibility check
+                break
+            end
+
+            i += 1
+        end
+    end
+
+    if display_plot
+        replace!(res, nothing=>0.)
+
+        x = 1:Emax
+
+        p1 = plot(x, [res[1, :], res[2, :]], lc=["blue" "cyan"], lw=1.5, title="Temperature", label=["T" "Tlow"])
+
+        p2 = plot(x, res[11, :] ./ res[10, :] .* 100, title = "Acceptance ratio", label="% of used degrading sol", lw=2)
+
+        x = 2:Emax
+        p3 = plot(title="Solutions", label="valid sol threshold")
+        # plot!(x, [res[6, 2:end] res[7, 2:end]], fillrange = Vector{Float64}(res[7, 2:end]), fa = .3, fc="blue", lc="blue", lw=1.5, label=["range of s* values" ""])
+        # plot!(x, [res[8, 2:end] res[9, 2:end]], fillrange = Vector{Float64}(res[9, 2:end]), fa = .3, fc="cyan", lc="cyan", lw=1.5, label=["range of used degrading s* values" ""])
+        plot!(x, [res[4, 2:end], res[5, 2:end]], fillrange = Vector{Float64}(res[5, 2:end]), fa = .3, fc="green", lc="green", lw=1.5, label=["range of s_curr values" ""])
+        plot!(x, res[13, 2:end] ./ res[12, 2:end], lc="blue", lw=1.5, label="avg kept s*")
+        plot!(x, res[3, 2:end], lc="purple", lw=1.5, label="s_best")
+
+        display(plot(p1, p2, p3, layout=(3,1), size = (1200, 1200)))
+    end
+
+    return s_best, isSessionValid(s_best), res
+end
+

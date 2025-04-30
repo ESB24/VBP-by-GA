@@ -1,5 +1,6 @@
 begin
     using Combinatorics
+    using Statistics
     using Gurobi
     using GLPK
     using JuMP
@@ -115,23 +116,39 @@ canAddRouteToSession(r::Route{N}, s::Session) where N = sum(deepcopy(s.load) + r
 
 abstract type FitnessSession end
 
-struct HollowedPercentage   <: FitnessSession end
-struct NonFilledOutputs     <: FitnessSession end
-struct LoadSTD              <: FitnessSession end
-struct NonNulLoadSTD        <: FitnessSession end
+struct HollowedPercentage   <: FitnessSession end # Min
+struct NonFilledOutputs     <: FitnessSession end # Min
+struct LoadSTD              <: FitnessSession end # Min
+struct NonNulLoadSTD        <: FitnessSession end # Min
 
 # Minimalistic Session
-@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{HollowedPercentage})      = (100 * ((Lmax * length(loads)) - sum(loads))) / (Lmax * length(loads))
-@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{NonFilledOutputs})        = float(count(x -> x >= Lmax, loads))
-@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{LoadSTD})                 = std(loads)
-@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{NonNulLoadSTD})           = std([e for e in loads if e != 0])
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{HollowedPercentage})       = (100 * ((Lmax * length(loads)) - sum(loads))) / (Lmax * length(loads))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{NonFilledOutputs})         = float(count(x -> x >= Lmax, loads))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{LoadSTD})                  = std(loads)
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{NonNulLoadSTD})            = std([e for e in loads if e != 0])
 
 # Full Session
 @inline specialized(s::Session,::Type{HollowedPercentage})  = specialized(s.load, s.Lmax, HollowedPercentage)
 @inline specialized(s::Session,::Type{NonFilledOutputs})    = specialized(s.load, s.Lmax, NonFilledOutputs)
 @inline specialized(s::Session,::Type{LoadSTD})             = specialized(s.load, s.Lmax, LoadSTD)
-@inline specialized(s::Session,::Type{NonNulLoadSTD})       = specialized(s.load, s.Lmax, LoadSTD)
+@inline specialized(s::Session,::Type{NonNulLoadSTD})       = specialized(s.load, s.Lmax, NonNulLoadSTD)
 
+struct OverloadOutput       <: FitnessSession end # Min
+struct OverloadVolume       <: FitnessSession end # Min
+struct OutputVariance       <: FitnessSession end # Min
+struct MaxOverload          <: FitnessSession end # Min
+
+# Minimalistic Session
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadOutput})           = count(x -> x > Lmax, loads)
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadVolume})           = sqrt(sum([l - Lmax for l in loads if l ≥ Lmax]))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OutputVariance})           = sum([(l - mean(loads))^2 for l in loads])/length(loads)
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{MaxOverload})              = maximum([l - Lmax for l in loads if l ≥ Lmax])
+
+# Full Session
+@inline specialized(s::Session,::Type{OverloadOutput})      = specialized(s.load, s.Lmax, OverloadOutput)
+@inline specialized(s::Session,::Type{OverloadVolume})      = specialized(s.load, s.Lmax, OverloadVolume)
+@inline specialized(s::Session,::Type{OutputVariance})      = specialized(s.load, s.Lmax, OutputVariance)
+@inline specialized(s::Session,::Type{MaxOverload})         = specialized(s.load, s.Lmax, MaxOverload)
 
 """
 ```Julia
@@ -1005,8 +1022,8 @@ end
 Create a random session. `Lmax` is the maximum capacity of each output. `O` is the number of output of the session and `nbRoutes` is the amount of random routes that the session will bore.
  > :warning: note that this session may be invalid with the wrong set of parameter as most of it is completely random and no safety procedure are implemented.
 """
-function randSession(Lmax::Int64=25, O::Int64=20, nbRoutes::Int64=10)
-    routes::Vector{Route} = [randRoute(i, O, nothing, Lmax) for i=1:nbRoutes]
+function randomSession(Lmax::Int64=25, O::Int64=20, nbRoutes::Int64=10)
+    routes::Vector{Route} = [randomRoute(i, O, nothing, Lmax) for i=1:nbRoutes]
 
     return Session(Lmax, routes, compute_output(routes))
 end

@@ -1,64 +1,3 @@
-function generateRounds(
-        nbRound         ::Int64             ,
-        minVolume       ::Int64             ,
-        minBatches      ::Int64             ,
-        nbPlots         ::Int64             ,
-        nbGaussian      ::UnitRange{Int64}  ,
-        Lmax            ::Int64             , 
-        O               ::Int64             ,
-        currentId       ::Int64             ,
-    )
-# ==========< Generate Batches >==========
-
-    tmp = generateMultipleGaussianSum(O, nbPlots, nbGaussian)
-    plotRange::Float64 = ((Lmax - minVolume) / nbPlots) - (minVolume) # Full range for each plot
-
-    matrix::Matrix{Int64} = zeros(Int64, nbPlots+2, O)
-
-    matrix[2:(nbPlots+1), :] = round.(plotRange .* tmp) # scale and round each plot
-    matrix[nbPlots+2, :] .= Lmax
-
-    for i=2:nbPlots+1
-        matrix[i, :] .+= round((i - 1) * minVolume + (i - 2) * plotRange)
-    end
-
-    batches::Vector{Int64} = []
-
-    for k=1:O
-        for i=1:nbPlots+1
-            push!(batches, matrix[i+1, k] - matrix[i, k])
-        end
-    end
-
-# ==========< Assign Batches >==========
-
-    roundBatches::Vector{Vector{Int64}} = [[] for _=1:nbRound]
-
-    for k=1:O
-        order::Vector{Int64} = randperm(nbRound+1)
-        for i=1:nbPlot+1
-            push!(roundBatches[order[1]], k)
-        end
-    end
-
-# ==========< Build Rounds >==========
-    rounds::Vector{Round} = []    
-
-    for batchesId::Vector{Int64} in roundBatches
-        Br::Int64 = length(batchesId)
-        r::Round{Br} = Round(currentId, zeros(Int64, O), ntuple(i -> batches[batchesId[i]], Br))
-        
-        for i=1:Br
-            r.assignment[round(Int64, 1+floor((batchesId[i]-1) / (nbPlots+1)))] = batches[batchesId[i]]
-        end
-
-        push!(rounds, r)
-        currentId += 1
-    end
-
-    return (rounds, currentId)
-end
-
 begin # Library
     # Test
 	import BenchmarkTools
@@ -79,7 +18,7 @@ begin # Files
     include("MILP.jl")
     include("Miscelaneous.jl")
     
-    # include("OptiMove.jl")
+    include("OptiMove.jl")
     
     include("GeneticAlgorithm.jl")
 
@@ -127,7 +66,7 @@ function test()
     (sortperm(w1) == sortperm(w2)) ? print("o") : print("-")
 end
 
-function rebuild1Session(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt"; alg=3)
+function rebuild1Session(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt"; alg=0)
     tmp = VERBOSE
     global VERBOSE = true
 
@@ -137,15 +76,19 @@ function rebuild1Session(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_
     glob_tl = 10
     glob_env = Gurobi.Env()
 
-    if alg == 3
-        s, tag = rebuildSession_knapSack_model_V3!(glob_s, glob_tl, glob_env)
+    if alg == 0
+        glob_s, tag, Acceptance_ratio = SimulatedAnnealing(glob_s)
+
+        println("Acceptance_ratio -> $Acceptance_ratio")
+    elseif alg == 3
+        glob_s, tag = rebuildSession_knapSack_model_V3!(glob_s, glob_tl, glob_env)
     else
-        s, tag = rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env)
+        glob_s, tag = rebuildSession_knapSack_model_V4!(glob_s, glob_tl, glob_env)
     end
-    println_verbose("$s")
+    println_verbose("$glob_s")
     println_verbose("VALID = $tag", ANSI_cyan)
     global VERBOSE = tmp
-    return s, tag
+    return glob_s, tag
 end
 
 # begin
@@ -210,11 +153,59 @@ function getStdInstance(inst_name::String = "instanceChunk_1_O200_R20_C100_opt_1
     return std(all_mail)
 end
 
+using Plots
 
-begin
-    Lmax, mat, opti = parseMyInstance_completed("../data/HardIndus/instanceIndus_1_O20_R30_C40_opt_1.txt")
-    R, O = size(mat)
+function RunSA(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt")
+    tmp = VERBOSE
+    global VERBOSE = true
 
-    Instance(Lmax, O, R, [Route(ma) for i=1:R])
+    instance, nbSession = parseAnyInstance(inst_name)
+
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+    glob_s, tag, Acceptance_ratio, _ = SimulatedAnnealing(glob_s)
+
+    println("Acceptance_ratio: $(Acceptance_ratio)")
+
+    println_verbose("$glob_s")
+    println_verbose("VALID = $tag", ANSI_cyan)
+    global VERBOSE = tmp
+
+    # x = 1:length(Acceptance_ratio)
+    # plot(x, Acceptance_ratio)
+
+    return glob_s, tag
+end
+
+function RunSA_V2(inst_name::String = "instanceIndus_1_O200_R30_C40_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
+    instance, nbSession = parseAnyInstance(inst_name)
+
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+    s, flag, res = SimulatedAnnealing_V2(glob_s)
+
+    println_verbose("$s")
+    println_verbose("VALID = $flag", ANSI_cyan)
+
+    return s, flag, res
+end
+
+function RunSA_V2_mergeRatio(inst_name = "instanceSkewed_1_O200_R20_C80_opt_1.txt")
+    #inst_name = "instanceContained_1_O200_R20_C150_opt_1.txt"
+
+    instance, nbSession = parseAnyInstance(inst_name)
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+    sum_sol = 0
+    best_sol = nothing
+    for i=1:10
+        
+        s, flag, res = SimulatedAnnealing_V2(deepcopy(glob_s), display_plot=false)
+
+        sum_sol += fitness(s, OverloadVolume)
+        (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
+        println("resolution: $i/10 -> $(fitness(s, OverloadVolume))")
+    end
+    println("merge ratio=$(best_sol/(sum_sol/10))")
 end
 

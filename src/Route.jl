@@ -228,7 +228,7 @@ function randomRoute(
         distrib_fct ::Function              = distrib_1onN  ,
     )
 
-    (Br === nothing) && (Br = rand(Route(Int64, O/4):ceil(Int64, O/2)))
+    (Br === nothing) && (Br = rand(round(Int64, O/4):ceil(Int64, O/2)))
 
     distrib = distrib_fct(C)
 

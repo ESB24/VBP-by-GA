@@ -486,5 +486,4 @@ end
 # print_comment("display")
 # print_comment("misc")
 # print_comment("lower bound")
-print_comment("1d-bp>gr")
-print_comment("1d-bfd>gr")
+print_comment("empty move")
