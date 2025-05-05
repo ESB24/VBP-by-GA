@@ -897,47 +897,84 @@ function EmptyMove(
     return (newLoad, newAssignment, valid)
 end
 
-function EmptyMove(
-        s       ::Session               ,     # Session to edit
-        r       ::Route{N}              ;     # index of the Route
-        τ       ::Float64       = 0.0   ,
+function EmptyMove_V2!(
+        s       ::Session                                       ,   # Session to edit
+        r       ::Route{N}                                      ,   # index of the Route
         obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
     ) where N
-
-    e::Int64 = findall(iszero, r.assignment)[argmin(map(k -> s.load[k], findall(iszero, r.assignment)))]    # least loaded empty output
-    f::Int64 = findall(!iszero, r.assignment)[argmax(map(k -> s.load[k], findall(!iszero, r.assignment)))]    # least loaded empty output
-    range::StepRange{Int64, Int64} = (e<f) ? ((e+1):f) : ((e-1):-1:f)           # interval from e to f
-
-    newPos          ::Int64         = e                         # ne position for moved mail
-    newAssignment   ::Vector{Int64} = deepcopy(r.assignment)    # updated positions
-    newLoad         ::Vector{Int64} = deepcopy(s.load)          # updated loads
-
+    
+    load::Vector{Int64} = s.load
+    assignment::Vector{Int64} = r.assignment
+    O::Int64 = length(load)
+    e::Int64 = -1 # least loaded empty output
+    f::Int64 = -1 # most loaded filled output
+    for k=1:O
+        if assignment[k] == 0
+            ((e == -1) || (load[e] > load[k])) && (e = k)
+        else
+            ((f == -1) || (load[f] < load[k])) && (f = k)
+        end
+    end
+    range::StepRange{Int64, Int64} = (e<f) ? ((e+1):f) : ((e-1):-1:f)   # interval from e to f
+    newPos::Int64 = e                         # ne position for moved mail
     valid::Bool = true
 
-    # println("$e, $f, $range", ANSI_cyan)
+    # println("e=$e, f=$f, range=$range")
 
-    for oldPos = range
-        if newAssignment[oldPos] != 0
-            newAssignment[newPos] = newAssignment[oldPos]
-
-            if (newLoad[oldPos] <= s.Lmax) && (newLoad[newPos] <= s.Lmax) && (newLoad[newPos] + newAssignment[oldPos] > s.Lmax)
-                # a constraint violation has been created from valid position
-                valid = false
-                # break
-            end
-
-            newLoad[newPos] += newAssignment[newPos]
-            newLoad[oldPos] -= newAssignment[newPos]
+    for oldPos=range
+        if assignment[oldPos] != 0
+            assignment[newPos] = assignment[oldPos]
+            load[newPos] += assignment[newPos]
+            load[oldPos] -= assignment[newPos]
             
             newPos = oldPos
         end
     end
+    assignment[f] = 0
+end
 
-    newAssignment[f] = 0
+function EmptyMove_V3!(
+        s       ::Session                                       ,   # Session to edit
+        r       ::Route{N}                                      ,   # index of the Route
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    ) where N
 
-    # print_verbose("<EM $(valid ? "V" : "X") - f=$f to e=$e >", valid ? ANSI_green : ANSI_red)
+    load::Vector{Int64} = s.load
+    assignment::Vector{Int64} = r.assignment
+    O::Int64 = length(load)
+    Lmax::Int64 = s.Lmax
+    e::Int64 = -1 # least loaded empty output
+    f::Int64 = -1 # most loaded filled output
+    for k=1:O
+        if assignment[k] == 0
+            ((e == -1) || (load[e] > load[k])) && (e = k)
+        else
+            ((f == -1) || (load[f] < load[k])) && (f = k)
+        end
+    end
+    range::StepRange{Int64, Int64} = (e<f) ? ((e+1):f) : ((e-1):-1:f)   # interval from e to f
+    newPos::Int64 = e                         # ne position for moved mail
+    edited::Vector{Int64} = zeros(Int64, O)
 
-    return (newLoad, newAssignment, valid)
+    # println("e=$e, f=$f, range=$range")
+
+    for oldPos=range
+        if assignment[oldPos] != 0
+            if ((load[newPos] <= Lmax) && (load[newPos] + assignment[newPos] > Lmax))
+                edited[newPos] += 1 
+            end
+            if ((load[oldPos] > Lmax) && (load[oldPos] - assignment[oldPos] <= Lmax))
+                edited[oldPos] -= 1
+            end
+            assignment[newPos] = assignment[oldPos]
+            load[newPos] += assignment[newPos]
+            load[oldPos] -= assignment[newPos]
+            newPos = oldPos
+        end
+    end
+    assignment[f] = 0
+
+    return edited
 end
 
 function EmptyMoveNeighborhood_cascade(
@@ -965,14 +1002,25 @@ function EmptyMoveNeighborhood_cascade(
     return s, movement
 end
 
+function EmptyMoveNeighborhood_cascade_V2(
+        s       ::Session                                       ,   # initial session
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
+    s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+
+    for r in s.route
+        EmptyMove_V2!(s, r, obj)
+    end
+
+    return s
+end
+
 function EmptyMoveNeighborhood_randOrder(
         s       ::Session                                       ;   # Session to edit
         τ       ::Float64                   = 0.0               ,   # Fault tolerance
         obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
     )
     s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
-
-    # print_verbose("<EMN Cascade { ", ANSI_cyan)
 
     tmpObj = round(fitness(s, obj), digits=3)
 
@@ -991,16 +1039,24 @@ function EmptyMoveNeighborhood_randOrder(
     return s, movement
 end
 
+function EmptyMoveNeighborhood_randOrder_V2(
+        s       ::Session                                       ,   # Session to edit
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
+    s::Session = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+    perm = randperm(length(s.route))
+    for i=1:length(s.route)
+        EmptyMove(s, s.route[perm[i]])
+    end
+
+    return s
+end
+
 function EmptyMoveNeighborhood_randDistrib(
-        s       ::Session                                       ;   # Session to edit
-        τ       ::Float64                   = 0.0               ,   # Fault tolerance
+        s       ::Session                                       ,   # Session to edit
         obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
     )
     s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
-
-    tmpObj = round(fitness(s, obj), digits=3)
-
-    movement::Int64 = 0
 
     distrib = [Float64(sum(r.mail)) for r in s.route]
     for k=1:length(s.load)
@@ -1018,47 +1074,88 @@ function EmptyMoveNeighborhood_randDistrib(
         iter = 0
         while valid && iter < 10
             r = s.route[rand(Categorical(distrib))]
-            newLoad, newAssignment, valid = EmptyMove(s, r, τ=τ, obj=obj)
+            newLoad, newAssignment, valid = EmptyMove(s, r, obj=obj)
             if true # valid    # Valid movement
                 s.load          = newLoad       # update session's loads
                 r.assignment    = newAssignment # update route's assignment
-                movement += 1
             end
             iter += 1
         end
     end
 
-    return s, movement
+    return s
+end
+
+function EmptyMoveNeighborhood_randDistrib_V2(
+        s       ::Session                                       ,   # Session to edit
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
+    s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+
+    distrib = ones(Float64, length(s.route))
+    for k=1:length(s.load)
+        if s.load[k] >= s.Lmax
+            for (r_id, r) in enumerate(s.route)
+                if r.assignment[k] != 0
+                    distrib[r_id] += 1
+                end
+            end
+        end
+    end
+
+    iter = 0
+    while iter <= 2 * length(s.route)
+        r = s.route[rand(Categorical(distrib ./ sum(distrib)))]
+        edited = EmptyMove_V3!(s, r, obj)
+
+        if iter < length(s.route)
+            for (k, e) in enumerate(edited)
+                if e != 0
+                    for (r_id, r) in enumerate(s.route)
+                        if r.assignment[k] != 0
+                            distrib[r_id] += e
+                            if distrib[r_id] < 1
+                                distrib[r_id] = 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        iter += 1
+    end
+
+    return s
 end
 
 function SimulatedAnnealing_V2(
         s_init          ::Session                                   ; # initial solution
         obj             ::Type{<:FitnessSession} = OverloadVolume   , # regarded objective
-        display_plot    ::Bool = true                               , # generate plots
-        display_state   ::Bool = true                               , # debug info
+        display_plot    ::Bool = false                              , # generate plots
+        display_state   ::Bool = false                              , # debug info
     )
 
     Lmax    ::Int64     = s_init.Lmax
 
-    τ_T     ::Float64   = 1.5                                   # allowed error %
+    τ_T     ::Float64   = .5                                    # allowed error %
     T       ::Float64   = fitness(s_init, obj) * .2 * τ_T       # initial temperature
-    τ_Tlow  ::Float64   = .2                                    # allowed error %
-    Tlow    ::Float64   = fitness(s_init, obj) * .2 * τ_Tlow    # initial temperature
     α       ::Float64   = 0.98                                  # cooling ratio
 
-    Emax    ::Int64     = length(s_init.load)*2.                # maximum number of epochs
+    Emax    ::Int64     = length(s_init.load)                   # maximum number of epochs
     j       ::Int64     = 1                                     # current epoch
-    Mmax    ::Int64     = length(s_init.load)*2.                # maximum number of moves per epoch
+    Mmax    ::Int64     = length(s_init.load)                   # maximum number of moves per epoch
     i       ::Int64     = 1                                     # iter in epoch
     
-    s_best  ::Session   = deepcopy(s_init)                      # best solution
-    s_curr  ::Session   = deepcopy(s_init)                      # current solution
+    s_best  ::Session   = s_init                                # best solution
+    s_curr  ::Session   = s_init                                # current solution
 
     nogood  ::Int64     = 0                                     # number of consecutive rejected solution
+    nobest  ::Int64     = 0                                     # number of consecutive rejected solution
 
     # =====< Results tracking >=====
     # [1, 1:Emax]  -> T
-    # [2, 1:Emax]  -> Tlow
+    # [2, 1:Emax]  -> TODO
     # [3, 1:Emax]  -> # kept sol
     # [4, 1:Emax]  -> ∑ kept sol obj
     # [5, 1:Emax]  -> # degrading sol
@@ -1082,39 +1179,37 @@ function SimulatedAnnealing_V2(
     while true
         if i > Mmax
             resEpoch[1, j] = T                       # store epoche temperature
-            resEpoch[2, j] = Tlow                    # store epoche low temperature
             resEpoch[8, j] = 5 * T + (resEpoch[4, j] / resEpoch[3, j])
             resEpoch[9, j] = .69 * T + (resEpoch[4, j] / resEpoch[3, j])
             resEpoch[10, j] = fitness(s_best, obj)   # store epoche obj(s_best)
             resEpoch[13, j] = fitness(s_curr, obj)   # store epoche obj(s_best)
 
-            (display_state) && (print("\x1b[2F\x1b[1GEpoch $(j)/$(Emax):\n - avg kept sol obj: $((resEpoch[3, j] != 0) ? (round(resEpoch[4, j] / resEpoch[3, j], digits=3)) : "∅")          \n - best sol obj: $(round(resEpoch[10, j], digits=3))          "))
+            (display_state) && (print("\x1b[3F\x1b[1GEpoch $(j)/$(Emax):\n - temperature: $(round(T, digits=3))          \n - avg kept sol obj: $((resEpoch[3, j] != 0) ? (round(resEpoch[4, j] / resEpoch[3, j], digits=3)) : "∅")          \n - best sol obj: $(round(resEpoch[10, j], digits=3))          "))
             
             if j < Emax
                 j += 1                                          # next epoch
                 i = 1
                 
                 T *= α                                          # temperature cooling
-                Tlow = (fitness(s_curr, obj) - fitness(s_best, obj)) * .2 * τ_Tlow       # update Tlow according to current best sol
-
-                if nogood >= 2 * Mmax                           # temperature is too low
-                    τ_T *= 0.75                                 # -75 % of temperature from previous setting
-                    T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
-
-                    α -= .01                                    # increase cooling ration
-                end
             else
                 break
             end
         else
-            s_star, _ = EmptyMoveNeighborhood_randOrder(s_curr, obj=obj) # movement in neighborhood
-            s_star, _ = EmptyMoveNeighborhood_randDistrib(s_star, obj=obj) # movement in neighborhood
+            s_star = s_curr
+            # s_star, _ = EmptyMoveNeighborhood_cascade(s_star, obj=obj) # movement in neighborhood
+            # s_star, _ = EmptyMoveNeighborhood_randOrder(s_star, obj=obj)
+            # s_star, _ = EmptyMoveNeighborhood_randDistrib(s_star, obj=obj)
+            s_star = EmptyMoveNeighborhood_randOrder_V2(s_star, obj) # movement in neighborhood
+            s_star = EmptyMoveNeighborhood_randDistrib_V2(s_star, obj) # movement in neighborhood
 
             ((resEpoch[11, j] === nothing) || (resEpoch[11, j] > fitness(s_star, obj))) && (resEpoch[11, j] = fitness(s_star, obj))
             ((resEpoch[12, j] === nothing) || (resEpoch[12, j] < fitness(s_star, obj))) && (resEpoch[12, j] = fitness(s_star, obj))
 
             if fitness(s_star, obj) < fitness(s_best, obj)  # computed solution better than best solution
                 s_best = s_star                             # update best solution
+                nobest = 0
+            else
+                nobest += 1
             end
             
             Δ = fitness(s_star, obj) - fitness(s_curr, obj)
@@ -1144,6 +1239,21 @@ function SimulatedAnnealing_V2(
                 break
             end
 
+            if nogood >= Mmax                                   # temperature is too low
+                if nobest >= Mmax * Emax * .3
+                    τ_T *= 1.15                                 # 125 % of previous temperature
+                    T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
+                    #α -= .01                                    # decrease cooling ration
+
+                    nobest = 0
+                else
+                    τ_T *= 0.85                                 # 85 % of previous temperature
+                    T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
+                    α -= .005                                    # increase cooling ration
+                end
+                nogood = 0
+            end
+
             i += 1
         end
     end
@@ -1155,7 +1265,6 @@ function SimulatedAnnealing_V2(
         x = 1:Emax
 
         p1 = plot(x, resEpoch[1, :], lc="blue", lw=1.5, title="Temperature", label="T")
-        # plot!(x, resEpoch[2, :], lc="cyan", lw=1.5, label="Tlow")
         (isSessionValid(s_best)) && (plot!([j, j], [minimum(resEpoch[1, :]), maximum(resEpoch[1, :])], lc="black", lw=1.5, label="opt reached"))
 
         p2 = plot(x, resEpoch[6, :] ./ resEpoch[5, :] .* 100, title = "Acceptance ratio", label="% of degrading sol used", lw=2)

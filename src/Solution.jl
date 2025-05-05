@@ -228,8 +228,80 @@ function BFD_EmptyMove(
 
                         # println("\n\x1b[31m=====< Before >=====\n\x1b[0m$new_session")
 
-                        new_session, _, added = improvedOptiMove_V1(new_session)
+                        new_session, added, _ = SimulatedAnnealing_V2(new_session, display_plot=false, display_state=false)
 
+                        isSessionValid(new_session) ? print("\x1b[31mo\x1b[0m") : print("\x1b[31m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            current_session_id += 1
+        end
+    end
+
+    return S
+end
+
+## ============================================================================================================== ##
+##                           ##    ##  ########  ######              ########  ##    ##                           ##
+##                           ###   ##  ##        ##    ##            ##        ###  ###                           ##
+##                           ## ## ##  #####     ##     #    ####    #####     ## ## ##                           ##
+##                           ##   ###  ##        ##    ##            ##        ##    ##                           ##
+##                           ##    ##  ##        ######              ########  ##    ##                           ##
+## ============================================================================================================== ##
+
+function NFD_EmptyMove(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = nothing   , # Number of output of each session
+        R       ::Int64 = nothing   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O)]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+    current_session_id  ::Int64 = 1
+
+    for route_id in perm
+
+        added               ::Bool  = false
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+                        new_session, added, _ = SimulatedAnnealing_V2(new_session, display_plot=false, display_state=false)
                         isSessionValid(new_session) ? print("\x1b[31mo\x1b[0m") : print("\x1b[31m-\x1b[0m")
 
                         # if Empty move managed to insert the route update s

@@ -164,9 +164,9 @@ end
 function RunSA_V2(inst_name::String = "instanceIndus_1_O200_R30_C40_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
     instance, nbSession = parseAnyInstance(inst_name)
 
-    glob_s = randomSession()# shuffle!(Session(instance.Lmax, instance.route)))
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
 
-    s, flag, res = SimulatedAnnealing_V2(glob_s)
+    s, flag, res = SimulatedAnnealing_V2(glob_s, display_plot=true, display_state=true)
 
     println_verbose("$s")
     println_verbose("VALID = $flag", ANSI_cyan)
@@ -174,22 +174,50 @@ function RunSA_V2(inst_name::String = "instanceIndus_1_O200_R30_C40_opt_1.txt")#
     return s, flag, res
 end
 
-function RunSA_V2_mergeRatio(inst_name = "instanceSkewed_1_O200_R20_C80_opt_1.txt")
-    #inst_name = "instanceContained_1_O200_R20_C150_opt_1.txt"
+function RunSA_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.txt")
+    # "instanceChunk_1_O200_R20_C100_opt_1.txt"
+    # "instanceIndus_1_O200_R30_C40_opt_1.txt"
+    # "instanceContained_1_O200_R20_C150_opt_1.txt"
+    # "instanceSkewed_1_O200_R20_C80_opt_1.txt"
 
     instance, nbSession = parseAnyInstance(inst_name)
     glob_s = shuffle!(Session(instance.Lmax, instance.route))
 
     sum_sol = 0
     best_sol = nothing
-    for i=1:10
+    run = 10
+    for i=1:run
         
-        s, flag, res = SimulatedAnnealing_V2(deepcopy(glob_s), display_plot=false)
+        s, flag, res = SimulatedAnnealing_V2(deepcopy(glob_s), display_plot=true, display_state=true)
 
         sum_sol += fitness(s, OverloadVolume)
         (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
-        println("resolution: $i/10 -> $(fitness(s, OverloadVolume))")
+        println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume))\n\n\n")
     end
-    println("merge ratio=$(best_sol/(sum_sol/10))")
+    println("merge ratio=$(best_sol/(sum_sol/run))\navg solution obj = $((sum_sol/run))")
+end
+
+function RunGR_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.txt")
+    # "instanceChunk_1_O200_R20_C100_opt_1.txt"
+    # "instanceIndus_1_O200_R30_C40_opt_1.txt"
+    # "instanceContained_1_O200_R20_C150_opt_1.txt"
+    # "instanceSkewed_1_O200_R20_C80_opt_1.txt"
+
+    instance, nbSession = parseAnyInstance(inst_name)
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+    tl = 10
+    env = Gurobi.Env()
+
+    sum_sol = 0
+    best_sol = nothing
+    run = 10
+    for i=1:run
+        s, added = rebuildSession_knapSack_model_V3!(deepcopy(glob_s), tl, env)
+
+        sum_sol += fitness(s, OverloadVolume)
+        (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
+        println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume))\n\n\n")
+    end
+    println("merge ratio=$(best_sol/(sum_sol/run))\navg solution obj = $((sum_sol/run))")
 end
 

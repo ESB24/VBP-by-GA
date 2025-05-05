@@ -1,6 +1,6 @@
 fd_verbose = open("../debug/verbose_out.txt", "a+")
 
-global VERBOSE              = true
+global VERBOSE              = false
 global VERBOSE_IO           = stdout                    # Default = stdout
 global VERBOSE_IO_IS_STDOUT = (VERBOSE_IO == stdout)
 

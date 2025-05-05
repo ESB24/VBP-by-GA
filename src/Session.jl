@@ -817,6 +817,17 @@ function addRoute_Rebuild_Knapsack_model_V3!(s::Session, r::Route{N}, tl::Int64=
     return (ns, flag)::Tuple{Session, Bool}
 end
 
+function addRoute_EmptyMove_V2(s::Session, r::Route{N})::Tuple{Session, Bool} where N
+    (global call += 1)
+
+    ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+    push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+    ns, flag, _ = SimulatedAnnealing_V2(ns, display_plot=false, display_state=false)
+    
+    return (ns, flag)::Tuple{Session, Bool}
+end
+
 function addRoute_OPTIMOVE_stage1!(s::Session, r::Route{N}, TAG_FitSes::Type{<:FitnessSession} = LoadSTD)::Tuple{Session, Bool} where N
     # session capacity
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
@@ -944,6 +955,7 @@ struct OPTIMOVE_S1_NEGSTD   <: SimpleAddRoute end
 struct REBUILD_KP           <: SimpleAddRoute end
 struct REBUILD_KP_01LP      <: SimpleAddRoute end
 struct REBUILD_KP_01LP_V2   <: SimpleAddRoute end
+struct EMPTYMOVE_V2         <: SimpleAddRoute end
 
 # MOVE 1 ROUND
 @inline addRoute(s::Session, r::Route{N}, ::Type{RAW}                 , Δ::Int64 = 2, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, tl::Int64 = 2, env::Gurobi.Env = Gurobi.Env()) where N = addRoute_RAW!(s, r)
@@ -956,6 +968,7 @@ struct REBUILD_KP_01LP_V2   <: SimpleAddRoute end
 @inline addRoute(s::Session, r::Route{N}, ::Type{REBUILD_KP}          , Δ::Int64 = 2, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, tl::Int64 = 2, env::Gurobi.Env = Gurobi.Env()) where N = addRoute_Rebuild_Knapsack!(s, r)
 @inline addRoute(s::Session, r::Route{N}, ::Type{REBUILD_KP_01LP}     , Δ::Int64 = 2, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, tl::Int64 = 2, env::Gurobi.Env = Gurobi.Env()) where N = addRoute_Rebuild_Knapsack_model!(s, r, env)
 @inline addRoute(s::Session, r::Route{N}, ::Type{REBUILD_KP_01LP_V2}  , Δ::Int64 = 2, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, tl::Int64 = 2, env::Gurobi.Env = Gurobi.Env()) where N = addRoute_Rebuild_Knapsack_model_V2!(s, r, tl, env)
+@inline addRoute(s::Session, r::Route{N}, ::Type{EMPTYMOVE_V2}  , Δ::Int64 = 2, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, tl::Int64 = 2, env::Gurobi.Env = Gurobi.Env()) where N = addRoute_EmptyMove_V2(s::Session, r::Route{N})
 
 # MOVE SESSION
 @inline addRoute(s::Session, r::Route{N}, ::Type{OPTIMOVE_STAGE1}     , Δ::Int64 = 2, TAG_FitSes::Type{<:FitnessSession} = LoadSTD, tl::Int64 = 2, env::Gurobi.Env = Gurobi.Env()) where N = addRoute_OPTIMOVE_stage1!(s, r, TAG_FitSes)
