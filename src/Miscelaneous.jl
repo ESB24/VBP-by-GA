@@ -231,6 +231,232 @@ function parseAnyInstance(path::String, λ::Float64 = 0.25)::Tuple{Union{Instanc
     return instance, -1
 end
 
+function batterie_GR3_GR4(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:5]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            # (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:5]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:10]),
+            # (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:5]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C80_opt_5.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            # (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:5]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+        tl::Int64 = 10,
+        env::Gurobi.Env = Gurobi.Env(),
+    )
+    # ==========< Head >==========
+    fd = open(result_path, "a")
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c|c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{4}{l|}{BFD (\\textsc{GREADY-REBUILD-V3})} & \\multicolumn{4}{l}{BFD (\\textsc{GREADY-REBUILD-V4})} \\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} \\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+
+        # GREADY REBUILD
+        GR_opti ::Int64   = 0
+        GR_cpu  ::Float64 = 0.
+        GR_gap  ::Float64 = 0.
+        GR_obj  ::Float64 = 0.
+
+        for path in group_path
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+
+            start = time()
+            sol_BFD_EmptyMove = BFD_GreadyRebuild_V3(instance.route, Lmax, O, R, tl, env)
+
+            EM_opti += (length(sol_BFD_EmptyMove) == lb) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_gap += abs(lb - length(sol_BFD_EmptyMove)) / abs(lb)
+            EM_obj += length(sol_BFD_EmptyMove)
+
+    # ==========< GREADY REBUILD >==========
+                
+            start = time()
+            sol_BFD_GreadyRebuild = BFD_GreadyRebuild_V4(instance.route, Lmax, O, R, tl, env)
+
+            GR_opti += (length(sol_BFD_GreadyRebuild) == lb) ? (1) : (0)
+            GR_cpu += time() - start
+            GR_gap += abs(lb - length(sol_BFD_GreadyRebuild)) / abs(lb)
+            GR_obj += length(sol_BFD_GreadyRebuild)
+
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_gap  = round(EM_gap / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        # GREADY REBUILD
+        GR_cpu  = round(GR_cpu / length(group_path), digits=3)
+        GR_gap  = round(GR_gap / length(group_path), digits=3)
+        GR_obj  = round(GR_obj / length(group_path), digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj)") # EMPTY-MOVE
+    write(fd, " & $(GR_opti) & $(GR_cpu) & $(GR_gap) & $(GR_obj)") # GREADY REBUILD
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
+function batterie_SA2_SA3(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:5]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            # (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:5]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:10]),
+            # (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:5]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C80_opt_5.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            # (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:5]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+    )
+    # ==========< Head >==========
+    fd = open(result_path, "a")
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c|c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{4}{l|}{BFD (\\textsc{Simulated-Annealing-V2})} & \\multicolumn{4}{l}{BFD (\\textsc{Simulated-Annealing-V3})} \\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} \\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+
+        # GREADY REBUILD
+        GR_opti ::Int64   = 0
+        GR_cpu  ::Float64 = 0.
+        GR_gap  ::Float64 = 0.
+        GR_obj  ::Float64 = 0.
+
+        for path in group_path
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+
+            start = time()
+            sol_BFD_EmptyMove = FFD_EmptyMove(instance.route, Lmax, O, R)
+
+            EM_opti += (length(sol_BFD_EmptyMove) == lb) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_gap += abs(lb - length(sol_BFD_EmptyMove)) / abs(lb)
+            EM_obj += length(sol_BFD_EmptyMove)
+
+    # ==========< GREADY REBUILD >==========
+                
+            start = time()
+            sol_BFD_GreadyRebuild = BFD_SAV3_EM(instance.route, Lmax, O, R)
+
+            GR_opti += (length(sol_BFD_GreadyRebuild) == lb) ? (1) : (0)
+            GR_cpu += time() - start
+            GR_gap += abs(lb - length(sol_BFD_GreadyRebuild)) / abs(lb)
+            GR_obj += length(sol_BFD_GreadyRebuild)
+
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_gap  = round(EM_gap / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        # GREADY REBUILD
+        GR_cpu  = round(GR_cpu / length(group_path), digits=3)
+        GR_gap  = round(GR_gap / length(group_path), digits=3)
+        GR_obj  = round(GR_obj / length(group_path), digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj)") # EMPTY-MOVE
+    write(fd, " & $(GR_opti) & $(GR_cpu) & $(GR_gap) & $(GR_obj)") # GREADY REBUILD
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
 
 function batterie_EM_GR(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|

@@ -457,8 +457,8 @@ function setup_O1KP_V3(R, B, V, J, C, O, tl, env::Gurobi.Env = Gurobi.Env(), δ:
     set_optimizer_attribute(model, "TimeLimit", tl)
 
     @variable(model, x[r in R], Bin)
-
-    @objective(model, Max, sum([x[r] * (V[r] + (delta1/(length(δ) * length(R))) * ((B[r]-J[r]) / (b+1)) + (delta2/(length(δ) * length(R))) * (V[r]/(m+1))^2) for r in R])) 
+    #delta2
+    @objective(model, Max, sum([x[r] * (V[r] + (δ[1]/(length(δ) * length(R))) * ((B[r]-J[r]) / (b+1)) + (δ[2]/(length(δ) * length(R))) * (V[r]/(m+1))^2) for r in R])) 
 
     @constraint(model, sum([x[r] * V[r] for r in R]) <= C)
 
@@ -721,7 +721,7 @@ end
 
 
 global REBUILD_WEIGHT       = 2 # 1-2
-global REBUILD_MODEL        = 3 # 1-2-3
+global REBUILD_MODEL        = 1 # 1-2-3
 global REBUILD_BACKTRACK    = 2 # 0-1-2
 
 mutable struct tRebuildV4_output
@@ -747,7 +747,6 @@ function compute_weight(
     )
 
     weights::Vector{Float64} = zeros(Float64, length(M))
-
 
     if REBUILD_WEIGHT == 1
         max_mail_left   ::Int64 = maximum([B[r] - J[r] for r in M])
@@ -788,7 +787,7 @@ function compute_weight(
         # Secondary objective (2/2): priority to larger mail
         tmp_sec_obj2 = 1 + sum([(V[r])^2 for r in M])
         for (i, r) in enumerate(M)
-            weights[i] += δ[2] * (1 - (V[r])^2 / tmp_sec_obj2)
+            weights[i] += δ[2] * ((V[r])^2 / tmp_sec_obj2)
         end
 
         print_verbose("<obj2>", ANSI_green)
@@ -1108,7 +1107,7 @@ function rebuildSession_knapSack_model_V4!(
         δ   ::Vector{Float64}   = [[.61, .39], [.61, .39], [.2, .9]][REBUILD_MODEL], # Weights for model objective
     )
 
-    δ /= sum(δ)
+    # δ /= sum(δ)
 
     # ====================< Miscelaneous >====================
 

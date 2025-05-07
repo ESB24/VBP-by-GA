@@ -140,7 +140,7 @@ struct MaxOverload          <: FitnessSession end # Min
 
 # Minimalistic Session
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadOutput})           = count(x -> x > Lmax, loads)
-@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadVolume})           = sqrt(sum([l - Lmax for l in loads if l ≥ Lmax]))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadVolume})           = sqrt(sum([(l - Lmax) for l in loads if l ≥ Lmax]))
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OutputVariance})           = sum([(l - mean(loads))^2 for l in loads])/length(loads)
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{MaxOverload})              = maximum([l - Lmax for l in loads if l ≥ Lmax])
 

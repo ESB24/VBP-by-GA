@@ -407,6 +407,56 @@ function lesser_than(height::Int64)
     (height == 5) && (return "        ") 
 end
 
+function parenthesis_open(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "   ##   ") 
+    (height == 2) && (return "  ##    ") 
+    (height == 3) && (return "  ##    ") 
+    (height == 4) && (return "  ##    ") 
+    (height == 5) && (return "   ##   ") 
+end
+
+function parenthesis_close(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "   ##   ") 
+    (height == 2) && (return "    ##  ") 
+    (height == 3) && (return "    ##  ") 
+    (height == 4) && (return "    ##  ") 
+    (height == 5) && (return "   ##   ") 
+end
+
+function slash(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "     ## ") 
+    (height == 2) && (return "    ##  ") 
+    (height == 3) && (return "   ##   ") 
+    (height == 4) && (return "  ##    ") 
+    (height == 5) && (return " ##     ") 
+end
+
+function bracket_open(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "  ####  ") 
+    (height == 2) && (return "  ##    ") 
+    (height == 3) && (return "  ##    ") 
+    (height == 4) && (return "  ##    ") 
+    (height == 5) && (return "  ####  ") 
+end
+
+function bracket_close(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "  ####  ") 
+    (height == 2) && (return "    ##  ") 
+    (height == 3) && (return "    ##  ") 
+    (height == 4) && (return "    ##  ") 
+    (height == 5) && (return "  ####  ") 
+end
+
 function letter(c::Char, height::Int64)
     (c == 'a') && (return A(height))
     (c == 'b') && (return B(height))
@@ -451,12 +501,19 @@ function letter(c::Char, height::Int64)
     (c == '-') && (return dash(height))
     (c == '>') && (return greater_than(height))
     (c == '<') && (return lesser_than(height))
+    (c == '(') && (return parenthesis_open(height))
+    (c == ')') && (return parenthesis_close(height))
+    (c == '/') && (return slash(height))
+    (c == '[') && (return bracket_open(height))
+    (c == ']') && (return bracket_close(height))
 
     return "<Error>"
 end
 
 function print_comment(str::String; path::String = "./miscelaneous/output.txt", max_char::Int64 = 11)
     (length(str) > max_char) && (println("Warning: string length > 10!"))
+
+    str = lowercase(str)
 
     comment_width = 8 * max_char + 2 * (max_char - 1)
     word_width = 8 * length(str) + 2 * (length(str) - 1)
@@ -475,15 +532,4 @@ function print_comment(str::String; path::String = "./miscelaneous/output.txt", 
     close(fd)
 end
 
-# print_comment("instance")
-# print_comment("heuristic")
-# print_comment("01-lp")
-# print_comment("01-lp warm")
-# print_comment("benchmark")
-# print_comment("plot")
-# print_comment("constructor")
-# print_comment("fitness")
-# print_comment("display")
-# print_comment("misc")
-# print_comment("lower bound")
-print_comment("empty move")
+print_comment("SA")

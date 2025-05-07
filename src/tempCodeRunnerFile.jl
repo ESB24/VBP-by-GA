@@ -91,6 +91,62 @@ function rebuild1Session(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_
     return glob_s, tag
 end
 
+function test_BFD_EM()
+    instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt"
+    instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
+    Lmax = instance.Lmax
+    O = instance.nbOut
+    R = instance.nbRoute
+
+    start = time()
+
+    res = BFD_SAV3_EM(instance.route, Lmax, O, R)
+
+    return res, time() - start 
+end
+
+function test_FFD_EM()
+    instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt"
+    instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
+    Lmax = instance.Lmax
+    O = instance.nbOut
+    R = instance.nbRoute
+
+    start = time()
+    
+    res = FFD_SAV3_EM(instance.route, Lmax, O, R)
+
+    return res, time() - start 
+end
+
+function test_NFD_EM()
+    instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt"
+    instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
+    Lmax = instance.Lmax
+    O = instance.nbOut
+    R = instance.nbRoute
+
+    start = time()
+    
+    res = NFD_SAV3_EM(instance.route, Lmax, O, R)
+
+    return res, time() - start 
+end
+
+function test_WFD_EM()
+    instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt"
+    instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
+    Lmax = instance.Lmax
+    O = instance.nbOut
+    R = instance.nbRoute
+
+    start = time()
+    
+    res = WFD_SAV3_EM(instance.route, Lmax, O, R)
+
+    return res, time() - start 
+end
+
 function EM_GR(instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt")
     instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
     Lmax = instance.Lmax
@@ -139,37 +195,34 @@ end
 
 using Plots
 
-function RunSA(inst_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt")
-    tmp = VERBOSE
-    global VERBOSE = true
-
-    instance, nbSession = parseAnyInstance(inst_name)
-
-    glob_s = shuffle!(Session(instance.Lmax, instance.route))
-
-    glob_s, tag, Acceptance_ratio, _ = SimulatedAnnealing(glob_s)
-
-    println("Acceptance_ratio: $(Acceptance_ratio)")
-
-    println_verbose("$glob_s")
-    println_verbose("VALID = $tag", ANSI_cyan)
-    global VERBOSE = tmp
-
-    # x = 1:length(Acceptance_ratio)
-    # plot(x, Acceptance_ratio)
-
-    return glob_s, tag
-end
-
-function RunSA_V2(inst_name::String = "instanceIndus_1_O200_R30_C40_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
+function RunSA_V2(inst_name::String = "instanceSkewed_1_O200_R20_C80_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
     instance, nbSession = parseAnyInstance(inst_name)
 
     glob_s = shuffle!(Session(instance.Lmax, instance.route))
 
     s, flag, res = SimulatedAnnealing_V2(glob_s, display_plot=true, display_state=true)
 
+    
     println_verbose("$s")
     println_verbose("VALID = $flag", ANSI_cyan)
+
+    println("sqrt overload volume = $(fitness(s, OverloadVolume))")
+
+    return s, flag, res
+end
+
+function RunSA_V3(inst_name::String = "instanceSkewed_1_O200_R20_C80_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
+    instance, nbSession = parseAnyInstance(inst_name)
+
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+    s, flag, res = SimulatedAnnealing_V3(glob_s, display_plot=true, display_state=true)
+
+    
+    println_verbose("$s")
+    println_verbose("VALID = $flag", ANSI_cyan)
+
+    println("sqrt overload volume = $(fitness(s, OverloadVolume))")
 
     return s, flag, res
 end
@@ -189,6 +242,29 @@ function RunSA_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.tx
     for i=1:run
         
         s, flag, res = SimulatedAnnealing_V2(deepcopy(glob_s), display_plot=true, display_state=true)
+
+        sum_sol += fitness(s, OverloadVolume)
+        (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
+        println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume))\n\n\n")
+    end
+    println("merge ratio=$(best_sol/(sum_sol/run))\navg solution obj = $((sum_sol/run))")
+end
+
+function RunSA_V3_mergeRatio(inst_name = "instanceSkewed_1_O200_R20_C80_opt_1.txt")
+    # "instanceIndus_1_O200_R30_C40_opt_1.txt"
+    # "instanceContained_1_O200_R20_C150_opt_1.txt"
+    # "instanceChunk_1_O200_R20_C100_opt_1.txt"
+    # "instanceSkewed_1_O200_R20_C80_opt_1.txt"
+
+    instance, nbSession = parseAnyInstance(inst_name)
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+    sum_sol = 0
+    best_sol = nothing
+    run = 10
+    for i=1:run
+        
+        s, flag, res = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=true, display_state=true)
 
         sum_sol += fitness(s, OverloadVolume)
         (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
@@ -219,5 +295,87 @@ function RunGR_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.tx
         println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume))\n\n\n")
     end
     println("merge ratio=$(best_sol/(sum_sol/run))\navg solution obj = $((sum_sol/run))")
+end
+
+function attr_bench_GR_V3()
+    range_d1 = .71:.01:.89
+    range_d2 = .81:.01:.99
+
+    run_per_inst = 10
+
+    instances = [
+                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:run_per_inst];
+                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:run_per_inst];
+                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:run_per_inst];
+                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:run_per_inst]
+            ]
+
+    tl = 10
+    env = Gurobi.Env()
+
+    res_opti = zeros(Int64, length(range_d1), length(range_d2))
+
+    for (i1, d1) in enumerate(range_d1)
+        for (i2, d2) in enumerate(range_d2)
+            start = time()
+            print("δ = [$d1, $d2] : ")
+            for instance_path in instances
+                instance, nbSession = parseAnyInstance(instance_path)
+
+                s, added = rebuildSession_knapSack_model_V3!(Session(instance.Lmax, instance.route), tl, env, [d1, d2])
+
+                added && (res_opti[i1, i2] += 1)
+            end
+            println("res $(res_opti[i1, i2]), in $(round(time() - start, digits=3))")
+        end
+    end
+
+    println("Gready rebuild V3:")
+    println("δ1 ∈ $(collect(range_d1))")
+    println("δ2 ∈ $(collect(range_d2))")
+    for (i, d1) in enumerate(range_d1)
+        println("δ1 = $d1 -> $(res_opti[i, :])")
+    end
+end
+
+function attr_bench_GR_V4()
+    range_d1 = .71:.01:.89
+    range_d2 = .21:.01:.31
+
+    run_per_inst = 10
+
+    instances = [
+                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:run_per_inst];
+                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:run_per_inst];
+                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:run_per_inst];
+                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:run_per_inst]
+            ]
+
+    tl = 10
+    env = Gurobi.Env()
+
+    res_opti = zeros(Int64, length(range_d1), length(range_d2))
+
+    for (i1, d1) in enumerate(range_d1)
+        for (i2, d2) in enumerate(range_d2)
+            start = time()
+            print("δ = [$d1, $d2] : ")
+            for instance_path in instances
+                instance, nbSession = parseAnyInstance(instance_path)
+
+                s, added = rebuildSession_knapSack_model_V4!(Session(instance.Lmax, instance.route), tl, env, [d1, d2])
+
+                added && (res_opti[i1, i2] += 1)
+            end
+            println("res $(res_opti[i1, i2]), in $(round(time() - start, digits=3))")
+        end
+    end
+
+    println("Gready rebuild V4:")
+    println("δ1 ∈ $(collect(range_d1))")
+    println("δ2 ∈ $(collect(range_d2))")
+    for (i, d1) in enumerate(range_d1)
+        println("δ1 = $d1 -> $(res_opti[i, :])")
+    end
 end
 

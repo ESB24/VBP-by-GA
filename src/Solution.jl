@@ -171,12 +171,80 @@ end
 end
 
 ## ============================================================================================================== ##
-##                           ######    ########  ######              ########  ##    ##                           ##
-##                           ##    ##  ##        ##    ##            ##        ###  ###                           ##
-##                           #######   #####     ##     #    ####    #####     ## ## ##                           ##
-##                           ##    ##  ##        ##    ##            ##        ##    ##                           ##
-##                           #######   ##        ######              ########  ##    ##                           ##
+##        ######   ##    ##  ##    ##            ########  ########  ########            ########  ##    ##       ##
+##       ##    ##  ###   ##   ##  ##             ##           ##        ##               ##        ###  ###       ##
+##       ########  ## ## ##     ##               #####        ##        ##       ####    #####     ## ## ##       ##
+##       ##    ##  ##   ###     ##               ##           ##        ##               ##        ##    ##       ##
+##       ##    ##  ##    ##     ##               ##        ########     ##               ########  ##    ##       ##
 ## ============================================================================================================== ##
+
+function FFD_EmptyMove(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = nothing   , # Number of output of each session
+        R       ::Int64 = nothing   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O)]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+
+    for route_id in perm
+        
+        added               ::Bool  = false
+        current_session_id  ::Int64 = 1
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+                        # println("\n\x1b[31m=====< Before >=====\n\x1b[0m$new_session")
+
+                        new_session, added, _ = SimulatedAnnealing_V2(new_session, display_plot=false, display_state=false)
+
+                        isSessionValid(new_session) ? print("\x1b[31mo\x1b[0m") : print("\x1b[31m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            current_session_id += 1
+        end
+    end
+
+    return S
+end
 
 function BFD_EmptyMove(
         Routes  ::Vector{Route}     , # Routes of the instance
@@ -249,14 +317,6 @@ function BFD_EmptyMove(
     return S
 end
 
-## ============================================================================================================== ##
-##                           ##    ##  ########  ######              ########  ##    ##                           ##
-##                           ###   ##  ##        ##    ##            ##        ###  ###                           ##
-##                           ## ## ##  #####     ##     #    ####    #####     ## ## ##                           ##
-##                           ##   ###  ##        ##    ##            ##        ##    ##                           ##
-##                           ##    ##  ##        ######              ########  ##    ##                           ##
-## ============================================================================================================== ##
-
 function NFD_EmptyMove(
         Routes  ::Vector{Route}     , # Routes of the instance
         Lmax    ::Int64             , # Maximum capacity of an output
@@ -314,6 +374,359 @@ function NFD_EmptyMove(
                 added = true
             end
 
+            added || (current_session_id += 1)
+        end
+    end
+
+    return S
+end
+
+function WFD_EmptyMove(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = length(Routes[1].assignment)   , # Number of output of each session
+        R       ::Int64 = length(Routes)   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O) for _=1:minSession(Instance(Lmax, O, R, Routes))]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+
+    for route_id in perm
+
+        # Sort sessions from most to least loaded (mail volume)
+        sort!(S, by=x -> (-fitness(x, HollowedPercentage)))
+        
+        added               ::Bool  = false
+        current_session_id  ::Int64 = 1
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+                        # println("\n\x1b[31m=====< Before >=====\n\x1b[0m$new_session")
+
+                        new_session, added, _ = SimulatedAnnealing_V2(new_session, display_plot=false, display_state=false)
+
+                        isSessionValid(new_session) ? print("\x1b[31mo\x1b[0m") : print("\x1b[31m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            current_session_id += 1
+        end
+    end
+
+    return S
+end
+
+## ============================================================================================================== ##
+##        ######   ##    ##  ##    ##            ########  ########  ########            ########  ##    ##       ##
+##       ##    ##  ###   ##   ##  ##             ##           ##        ##               ##        ###  ###       ##
+##       ########  ## ## ##     ##               #####        ##        ##       ####    #####     ## ## ##       ##
+##       ##    ##  ##   ###     ##               ##           ##        ##               ##        ##    ##       ##
+##       ##    ##  ##    ##     ##               ##        ########     ##               ########  ##    ##       ##
+## ============================================================================================================== ##
+
+function FFD_SAV3_EM(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = nothing   , # Number of output of each session
+        R       ::Int64 = nothing   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O)]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+
+    for route_id in perm
+        
+        added               ::Bool  = false
+        current_session_id  ::Int64 = 1
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+                        # println("\n\x1b[31m=====< Before >=====\n\x1b[0m$new_session")
+
+                        new_session, added, _ = SimulatedAnnealing_V3(new_session, display_plot=false, display_state=false)
+
+                        isSessionValid(new_session) ? print("\x1b[36mo\x1b[0m") : print("\x1b[36m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            current_session_id += 1
+        end
+    end
+
+    return S
+end
+
+function BFD_SAV3_EM(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = nothing   , # Number of output of each session
+        R       ::Int64 = nothing   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O)]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+
+    for route_id in perm
+
+        # Sort sessions from most to least loaded (mail volume)
+        sort!(S, by=x -> (fitness(x, HollowedPercentage)))
+        
+        added               ::Bool  = false
+        current_session_id  ::Int64 = 1
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+                        # println("\n\x1b[31m=====< Before >=====\n\x1b[0m$new_session")
+
+                        new_session, added, _ = SimulatedAnnealing_V3(new_session, display_plot=false, display_state=false)
+
+                        isSessionValid(new_session) ? print("\x1b[36mo\x1b[0m") : print("\x1b[36m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            current_session_id += 1
+        end
+    end
+
+    return S
+end
+
+function NFD_SAV3_EM(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = nothing   , # Number of output of each session
+        R       ::Int64 = nothing   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O)]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+    current_session_id  ::Int64 = 1
+
+    for route_id in perm
+
+        added               ::Bool  = false
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+                        new_session, added, _ = SimulatedAnnealing_V3(new_session, display_plot=false, display_state=false)
+                        isSessionValid(new_session) ? print("\x1b[36mo\x1b[0m") : print("\x1b[36m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            added || (current_session_id += 1)
+        end
+    end
+
+    return S
+end
+
+function WFD_SAV3_EM(
+        Routes  ::Vector{Route}     , # Routes of the instance
+        Lmax    ::Int64             , # Maximum capacity of an output
+        O       ::Int64 = length(Routes[1].assignment)   , # Number of output of each session
+        R       ::Int64 = length(Routes)   , # Number of route to sort
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O) for _=1:minSession(Instance(Lmax, O, R, Routes))]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+
+    for route_id in perm
+
+        # Sort sessions from most to least loaded (mail volume)
+        sort!(S, by=x -> (-fitness(x, HollowedPercentage)))
+        
+        added               ::Bool  = false
+        current_session_id  ::Int64 = 1
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+                        # println("\n\x1b[31m=====< Before >=====\n\x1b[0m$new_session")
+
+                        new_session, added, _ = SimulatedAnnealing_V3(new_session, display_plot=false, display_state=false)
+
+                        isSessionValid(new_session) ? print("\x1b[36mo\x1b[0m") : print("\x1b[36m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
             current_session_id += 1
         end
     end
@@ -329,7 +742,7 @@ end
 ##                           #######   ##        ######               ######   ##   ##                            ##
 ## ============================================================================================================== ##
 
-function BFD_GreadyRebuild(
+function BFD_GreadyRebuild_V3(
         Routes  ::Vector{Route}             , # Routes of the instance
         Lmax    ::Int64                     , # Maximum capacity of an output
         O       ::Int64 = nothing           , # Number of output of each session
@@ -379,9 +792,80 @@ function BFD_GreadyRebuild(
                         new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
                         push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
-                        new_session, added = rebuildSession_knapSack_model_V3!(new_session, tl, env)
+                        new_session, added = rebuildSession_knapSack_model_V3!(new_session, tl, env, [.8, .9])
 
                         isSessionValid(new_session) ? print("\x1b[32mo\x1b[0m") : print("\x1b[32m-\x1b[0m")
+
+                        # if Empty move managed to insert the route update s
+                        (added) && (S[current_session_id] = new_session)
+                    end
+                end
+            else
+                # open a new session with the current route inside
+                push!(S, Session(Lmax, [r], deepcopy(r.assignment)))
+                added = true
+            end
+
+            current_session_id += 1
+        end
+    end
+
+    return S
+end
+
+function BFD_GreadyRebuild_V4(
+        Routes  ::Vector{Route}             , # Routes of the instance
+        Lmax    ::Int64                     , # Maximum capacity of an output
+        O       ::Int64 = nothing           , # Number of output of each session
+        R       ::Int64 = nothing           , # Number of route to sort
+        tl      ::Int64 = 10                , # Model time limite
+        env     ::Gurobi.Env = Gurobi.Env() , # Gurobi environement (for display purpose)
+    )::Vector{Session}
+
+    # Solution (Initialisation with an empty session) 
+    S::Vector{Session} = [Session(Lmax, O)]
+
+    # permutation = order to consider routes
+    perm::Vector{Int64} = sortperm([(-fitness(r, MaxMin), -fitness(r, MailNb)) for r in Routes])
+
+    for route_id in perm
+
+        # Sort sessions from most to least loaded (mail volume)
+        sort!(S, by=x -> (fitness(x, HollowedPercentage)))
+        
+        added               ::Bool  = false
+        current_session_id  ::Int64 = 1
+        r                   ::Route = Routes[route_id]
+
+        while !added
+            if current_session_id <= length(S)
+                
+                # try inserting the route into the current session
+                s::Session = S[current_session_id]
+
+                if length(s.route) < length(s.load) && certificat_CapacityVolume(s, r)
+
+                    newAssignment::Vector{Int64}, added = addRoute_LeftAlligned(s, r)
+
+                    if added
+
+                        s, added = addRoute_SmoothAssigned!(s, r)
+
+                        if !added
+                            # Smooth assigned failed use the left alligned valid assignemnent
+                            r = Route(r.id, newAssignment, r.mail)
+                            s.load += newAssignment
+                            push!(s.route, r)
+                            added = true
+                        end
+                    else
+                        # heavy procedure EMPTY-MOVE
+                        new_session::Session = Session(Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
+                        push!(new_session.route, Route(r.id, deepcopy(r.assignment), r.mail))
+
+                        new_session, added = rebuildSession_knapSack_model_V4!(new_session, tl, env, [.8, .2])
+
+                        isSessionValid(new_session) ? print("\x1b[34mo\x1b[0m") : print("\x1b[34m-\x1b[0m")
 
                         # if Empty move managed to insert the route update s
                         (added) && (S[current_session_id] = new_session)
@@ -637,9 +1121,13 @@ function BP_1D_into_GreadyRebuild(
 end
 
 
-# ================================================== #
-#                       Display                      #
-# ================================================== #
+## ============================================================================================================== ##
+##                      ######    ########   #######  #######   ##         ######   ##    ##                      ##
+##                      ##    ##     ##     ##        ##    ##  ##        ##    ##   ##  ##                       ##
+##                      ##     #     ##      ######   #######   ##        ########     ##                         ##
+##                      ##    ##     ##           ##  ##        ##        ##    ##     ##                         ##
+##                      ######    ########  #######   ##        ########  ##    ##     ##                         ##
+## ============================================================================================================== ##
 
 function Base.show(io::IO, sol::Solution)
     println(io, "Solution:\n    Permutation: $(sol.permutation)\n    \nSessions: (x$(length(sol.sessions)))\n")
@@ -651,9 +1139,13 @@ function Base.show(io::IO, sol::Solution)
     println("Average load STD: $(round(fitness(sol, SessionLoadSTD)/length(sol.sessions), digits=2))%")
 end
 
-# ================================================== #
-#                   Fitness Function                 #
-# ================================================== #
+## ============================================================================================================== ##
+##                      ########  ########  ########  ##    ##  ########   #######   #######                      ##
+##                      ##           ##        ##     ###   ##  ##        ##        ##                            ##
+##                      #####        ##        ##     ## ## ##  #####      ######    ######                       ##
+##                      ##           ##        ##     ##   ###  ##              ##        ##                      ##
+##                      ##        ########     ##     ##    ##  ########  #######   #######                       ##
+## ============================================================================================================== ##
 
 abstract type FitnessSolution end
 
@@ -680,9 +1172,13 @@ struct ObjGA_2                      <: FitnessSolution end
 
 @inline fitness(sol::Solution, TAGs::Vector{Type{<:FitnessSolution}}) = [specialized(sol, TAG) for TAG in TAGs]
 
-# ================================================== #
-#                     Miscelaneous                   #
-# ================================================== #
+## ============================================================================================================== ##
+##                                     ##    ##  ########   #######   ######                                      ##
+##                                     ###  ###     ##     ##        ##    ##                                     ##
+##                                     ## ## ##     ##      ######   ##                                           ##
+##                                     ##    ##     ##           ##  ##    ##                                     ##
+##                                     ##    ##  ########  #######    ######                                      ##
+## ============================================================================================================== ##
 
 function validSolution(instance::Instance, sol::Solution, display::Bool = true)
     usedRoute_vect::Vector{Int64} = zeros(Int64, instance.nbRoute)
