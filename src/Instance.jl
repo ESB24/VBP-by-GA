@@ -426,7 +426,7 @@ function generateSolution_BigBatche(
 end
 
 function writeSolution_BigBatche(path::String, sol::Solution, id::Int64 = 0)
-    O::Int64 = length(sol.sessions[1].loads)
+    O::Int64 = length(sol.sessions[1].load)
     nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
     Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
@@ -963,7 +963,7 @@ function generateSolution_Distrib_V2(
 end
 
 function writeSolution_Distrib_V2(path::String, sol::Solution, id::Int64 = 0)
-    O::Int64 = length(sol.sessions[1].loads)
+    O::Int64 = length(sol.sessions[1].load)
     nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
     Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)
@@ -1243,7 +1243,7 @@ function generateSolution_Gaussian(
 end
 
 function writeSolution_Gaussian(path::String, sol::Solution, id::Int64 = 0)
-    O::Int64 = length(sol.sessions[1].loads)
+    O::Int64 = length(sol.sessions[1].load)
     nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
     Lmax::Int64 = sol.sessions[1].Lmax
     nbSession::Int64 = length(sol.sessions)

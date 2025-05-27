@@ -81,48 +81,6 @@ end
 #                                  #    #     # #######                             #
 # ================================================================================= #
 
-function Bench_compareAlgoUses(nbInstances::Int64 = 10, nbRuns::Int64 = 10000)
-
-    instances_pool::Vector{Tuple{String, Vector{String}}} = [
-        ("Distrib O=20", ["TER/data/Distrib/instanceDistrib_$(i)_O20_R600_C300_opt_10.txt" for i=1:nbInstances]),
-        ("BigBatch O=20", ["TER/data/BigBatch/instanceBigBatche_$(i)_O20_R600_C300_opt_10.txt" for i=1:nbInstances]),
-        ("Gaussian O=20", ["TER/data/Gaussian/instanceGaussian_$(i)_O20_R200_C300_opt_10.txt" for i=1:nbInstances]),
-        ("Distrib O=200", ["TER/data/Distrib/instanceDistrib_$(i)_O200_R600_C300_opt_10.txt" for i=1:nbInstances]),
-        ("BigBatch O=200", ["TER/data/BigBatch/instanceBigBatche_$(i)_O200_R600_C300_opt_10.txt" for i=1:nbInstances]),
-        ("Gaussian O=200", ["TER/data/Gaussian/instanceGaussian_$(i)_O200_R200_C300_opt_10.txt" for i=1:nbInstances]),
-    ]
-
-    called = zeros(Int64, length(instances_pool))
-    repaired = zeros(Int64, length(instances_pool))
-    objMeans = zeros(Float64, length(instances_pool))
-
-    for (i, (name, instances)) in enumerate(instances_pool)
-        call = 0
-        repairedBuild = 0
-        sumObj = 0
-
-        for instance_path in instances
-            Lmax, mat, nbSession = parseMyInstance(instance_path)
-            instance::Instance = Instance(mat, 0.25)
-            instance.C = Lmax
-
-            for _=1:nbRuns
-                sol = buildSolution_FF_final(instance, LoadSTD)
-                sumObj += fitness(sol, ObjGA)
-            end
-        end
-
-        called[i] = call
-        repaired[i] = repairedBuild
-        objMeans[i] = sumObj /nbRuns
-    end
-
-    println("\n\n\n\nResults:")
-    for i=1:length(instances_pool)
-        println("    - $(instances_pool[i][1]) -> call = $(called[i]), repaired = $(repaired[i]), repaired% = $((repaired[i] * 100) / called[i]), objMeans = $(objMeans[i])")
-    end
-end
-
 function parseAnyInstanceMat(path::String, λ::Float64 = 0.25)::Tuple{Union{Matrix{Int64}, Nothing}, Int64}
     println(" ====================================================================================================")
     println("                                       $(path)")
@@ -457,6 +415,945 @@ function batterie_SA2_SA3(;
     close(fd)
 end
 
+function batterie_loadSmoothing(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R30_C40_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C80_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C100_opt_1.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R30_C40_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R20_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C80_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R20_C100_opt_1.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O100_R30_C40_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O100_R20_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O100_R20_C80_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O100_R20_C100_opt_1.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            (("Indus.", 20, 200), ["myTrafic_$(i)_O20_R40.txt" for i=1:10]),
+            (("Indus.", 20, 200), ["myTrafic_$(i)_O40_R40.txt" for i=1:10]),
+            (("Indus.", 20, 200), ["myTrafic_$(i)_O100_R40.txt" for i=1:10]),
+            (("Indus.", 20, 200), ["myTrafic_$(i)_O200_R40.txt" for i=1:10]),
+            ]   ,
+        result_path1         ::String            = "../data/results1.txt",
+        result_path2         ::String            = "../data/results2.txt",
+        result_path3         ::String            = "../data/results3.txt",
+        obj                 ::Type{<:FitnessSession} = OverloadVolume   ,
+    )
+    # ==========< Head >==========
+    fd1 = open(result_path1, "a")
+    fd2 = open(result_path2, "a")
+    fd3 = open(result_path3, "a")
+
+    write(fd1,"\n\n")
+    write(fd2,"\n\n")
+    write(fd3,"\n\n")
+
+    obj1 = LoadSTD
+    obj2 = MostLoadedOut
+
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti1    ::Int64   = 0
+        EM_opti2    ::Int64   = 0
+        EM_cpu      ::Float64 = 0.
+        EM_obj1     ::Float64 = 0.
+        EM_obj2     ::Float64 = 0.
+        EM_improv1  ::Float64 = 0.
+        EM_improv2  ::Float64 = 0.
+        EM_gap1     ::Float64 = 0.
+        EM_gap2     ::Float64 = 0.
+
+        SA_opti1    ::Int64   = 0
+        SA_opti2    ::Int64   = 0
+        SA_cpu      ::Float64 = 0.
+        SA_obj1     ::Float64 = 0.
+        SA_obj2     ::Float64 = 0.
+        SA_improv1  ::Float64 = 0.
+        SA_improv2  ::Float64 = 0.
+        SA_gap1     ::Float64 = 0.
+        SA_gap2     ::Float64 = 0.
+
+        LP_opti1    ::Int64   = 0
+        LP_opti2    ::Int64   = 0
+        LP_cpu      ::Float64 = 0.
+        LP_obj1     ::Float64 = 0.
+        LP_obj2     ::Float64 = 0.
+        LP_improv1  ::Float64 = 0.
+        LP_improv2  ::Float64 = 0.
+        LP_gap1     ::Float64 = 0.
+        LP_gap2     ::Float64 = 0.
+        LP_gap3     ::Float64 = 0.
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+
+            O = instance.nbOut
+            R = instance.nbRoute
+
+            glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+            start_obj1 = fitness(glob_s, LoadSTD)
+            start_obj2 = fitness(glob_s, MostLoadedOut)
+
+            lb_obj1 = 0.
+            lb_obj2 = mean(glob_s.load)
+    # ==========< solve EMPTY-MOVE >==========
+
+            start = time()
+            em_s1, em_s2, _ = EM_VE(deepcopy(glob_s))
+            em_cpu = time() - start
+
+            start = time()
+            sa_s1, sa_s2, _, _, _ = SA_V4(deepcopy(glob_s), display_plot=false, display_state=false, α=0.96, τ=.5)
+            sa_cpu = time() - start
+
+            start = time()
+            lp_md, lp_s = MILP_load_ballance_warmstart(deepcopy(glob_s), 600)
+            lp_cpu = time() - start
+
+            EM_opti1    += (fitness(em_s1, obj1) == lb_obj1) ? (1) : (0) 
+            EM_opti2    += (fitness(em_s2, obj2) == lb_obj2) ? (1) : (0) 
+            EM_cpu      += em_cpu
+            EM_obj1     += fitness(em_s1, obj1)
+            EM_obj2     += fitness(em_s2, obj2)
+            EM_improv1  += start_obj1 - fitness(em_s1, obj1)
+            EM_improv2  += start_obj2 - fitness(em_s2, obj2)
+            EM_gap1     += ((fitness(em_s1, obj1) == 0) ? (0) : (abs(lb_obj1 - fitness(em_s1, obj1)) / abs(fitness(em_s1, obj1))))
+            EM_gap2     += abs(lb_obj2 - fitness(em_s2, obj2)) / abs(fitness(em_s2, obj2))
+
+            SA_opti1    += (fitness(sa_s1, obj1) == lb_obj1) ? (1) : (0) 
+            SA_opti2    += (fitness(sa_s2, obj2) == lb_obj2) ? (1) : (0) 
+            SA_cpu      += sa_cpu
+            SA_obj1     += fitness(sa_s1, obj1)
+            SA_obj2     += fitness(sa_s2, obj2)
+            SA_improv1  += start_obj1 - fitness(sa_s1, obj1)
+            SA_improv2  += start_obj2 - fitness(sa_s2, obj2)
+            SA_gap1     += ((fitness(sa_s1, obj1) == 0) ? (0) : (abs(lb_obj1 - fitness(sa_s1, obj1)) / abs(fitness(sa_s1, obj1))))
+            SA_gap2     += abs(lb_obj2 - fitness(sa_s2, obj2)) / abs(fitness(sa_s2, obj2))
+
+            if termination_status(lp_md) == OPTIMAL
+                LP_opti1    += (lp_s == nothing) ? (0) : ((fitness(lp_s, obj1) == lb_obj1) ? (1) : (0)) 
+                LP_opti2    += (lp_s == nothing) ? (0) : (1) 
+                LP_cpu      += (lp_s == nothing) ? (0) : (lp_cpu)
+                LP_obj1     += (lp_s == nothing) ? (0) : (fitness(lp_s, obj1))
+                LP_obj2     += (lp_s == nothing) ? (0) : (fitness(lp_s, obj2))
+                LP_improv1  += (lp_s == nothing) ? (0) : (start_obj1 - fitness(lp_s, obj1))
+                LP_improv2  += (lp_s == nothing) ? (0) : (start_obj2 - fitness(lp_s, obj2))
+            end
+            LP_gap1     += (lp_s == nothing) ? (0) : ((fitness(lp_s, obj1) == 0) ? (0) : (abs(lb_obj1 - fitness(lp_s, obj1)) / abs(fitness(lp_s, obj1))))
+            LP_gap2     += (lp_s == nothing) ? (0) : (abs(lb_obj2 - fitness(lp_s, obj2)) / abs(fitness(lp_s, obj2)))
+            LP_gap3     += MOI.get(lp_md, Gurobi.ModelAttribute("MIPGap"))
+
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        EM_cpu      /= length(group_path)
+        EM_obj1     /= length(group_path)
+        EM_obj2     /= length(group_path)
+        EM_improv1  /= length(group_path)
+        EM_improv2  /= length(group_path)
+        EM_gap1     /= length(group_path)
+        EM_gap2     /= length(group_path)
+
+        SA_cpu      /= length(group_path)
+        SA_obj1     /= length(group_path)
+        SA_obj2     /= length(group_path)
+        SA_improv1  /= length(group_path)
+        SA_improv2  /= length(group_path)
+        SA_gap1     /= length(group_path)
+        SA_gap2     /= length(group_path)
+
+        LP_cpu      /= max(LP_opti2, 1)
+        LP_obj1     /= max(LP_opti2, 1)
+        LP_obj2     /= max(LP_opti2, 1)
+        LP_improv1  /= max(LP_opti2, 1)
+        LP_improv2  /= max(LP_opti2, 1)
+        LP_gap1     /= max(LP_opti2, 1)
+        LP_gap2     /= max(LP_opti2, 1)
+        LP_gap3     /= length(group_path)
+
+    # ==========< Write line >==========
+
+    write(fd1, "$(name) & $(O) & $(R) & $(EM_opti1) & $(EM_opti2) & $(round(EM_cpu, digits=3)) & $(round(EM_obj1, digits=3)) & $(round(EM_obj2, digits=3)) & $(round(EM_improv1, digits=3)) & $(round(EM_improv2, digits=3)) & $(round(EM_gap1, digits=3)) & $(round(EM_gap2, digits=3)) \\\\\n") # Head
+    flush(fd1)
+
+    write(fd2, "$(name) & $(O) & $(R) & $(SA_opti1) & $(SA_opti2) & $(round(SA_cpu, digits=3)) & $(round(SA_obj1, digits=3)) & $(round(SA_obj2, digits=3)) & $(round(SA_improv1, digits=3)) & $(round(SA_improv2, digits=3)) & $(round(SA_gap1, digits=3)) & $(round(SA_gap2, digits=3)) \\\\\n") # Head
+    flush(fd2)
+
+    write(fd3, "$(name) & $(O) & $(R) & $(LP_opti1) & $(LP_opti2) & $(round(LP_cpu, digits=3)) & $(round(LP_obj1, digits=3)) & $(round(LP_obj2, digits=3)) & $(round(LP_improv1, digits=3)) & $(round(LP_improv2, digits=3)) & $(round(LP_gap1, digits=3)) & $(round(LP_gap2, digits=3)) & $(round(LP_gap3, digits=3)) \\\\\n") # Head
+    flush(fd3)
+
+    # ==========< Tail >==========
+
+    end
+
+    close(fd1)
+    close(fd2)
+    close(fd3)
+end
+
+function batterie_SA_OneSession(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:100]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:100]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:100]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:100]),
+            ]   ,
+        result_path         ::String            = "../data/results2.txt",
+        obj                 ::Type{<:FitnessSession} = OverloadVolume   ,
+    )
+    # ==========< Head >==========
+    fd = open(result_path, "a")
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c|c c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{3}{l|}{Instance} & \\multicolumn{5}{l|}{(\\textsc{Simulated-Annealing-V3})}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt OBJ} & {\\tt VAR} & {\\tt MERGE} \\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+        EM_all_obj::Vector{Float64} = zeros(Float64, length(group_path))
+        EM_best ::Union{Nothing, Float64} = nothing
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+
+            glob_s = shuffle!(Session(instance.Lmax, instance.route))
+    # ==========< solve EMPTY-MOVE >==========
+
+            start = time()
+
+            s, flag, _ = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=false, display_state=false, obj=obj, α=0.96, τ=.5)
+            # s, _, flag = improvedOptiMove_S1_V2!(deepcopy(glob_s))
+            # s, _, flag = improvedOptiMove_V1(deepcopy(glob_s))
+            EM_opti += (flag) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_obj += fitness(s, LoadSTD)
+            EM_all_obj[i] = fitness(s, LoadSTD)
+
+            ((EM_best == nothing) || (EM_best > fitness(s, LoadSTD))) && (EM_best = fitness(s, LoadSTD))
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        EM_var = round(sum([(EM_all_obj[i] - EM_obj)^2 for i=length(EM_all_obj)]) / (length(EM_all_obj) - 1), digits=3)
+        println("EM_all_obj = $(EM_all_obj)")
+        EM_merge = round(EM_best / EM_obj, digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_obj) & $(EM_var) & $(EM_merge)") # EMPTY-MOVE
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
+function batterie_MILP(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            #(("Indus. like", 30, 40), ["instanceIndus_$(i)_O40_R30_C40_opt_1.txt" for i=1:10]),
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R60_C40_opt_2.txt" for i=1:10]),
+
+            #(("Contained", 20, 40), ["instanceContained_$(i)_O40_R20_C150_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_2.txt" for i=1:10]),
+
+            #(("Skewed", 20, 40), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C60_opt_2.txt" for i=1:10]),
+
+            #(("Chunk", 20, 40), ["instanceChunk_$(i)_O40_R20_C100_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C100_opt_2.txt" for i=1:10]),
+
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+    )
+    # ==========< Head >==========
+
+    fd = open(result_path, "a")
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{4}{l}{MILP}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & {\\tt VAR}\\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+        EM_all_obj::Vector{Float64} = zeros(Float64, length(group_path))
+
+        end_success = 0
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+
+            sol_FD_EmptyMove = nothing
+            call = 0
+            success = 0
+            start = time()
+
+            s_init, (call, success) = BFD_EM(instance.route, Lmax, O, R)
+            _, sol = model_01LP_warmstart(instance, Solution(collect(1:R), s_init), 600)
+            sol_FD_EmptyMove = sol.sessions
+            
+            if sol_FD_EmptyMove != nothing
+                EM_opti += (length(sol_FD_EmptyMove) == lb) ? (1) : (0)
+                EM_cpu += time() - start
+                EM_gap += abs(lb - length(sol_FD_EmptyMove)) / abs(lb)
+                EM_obj += length(sol_FD_EmptyMove)
+                EM_all_obj[i] = length(sol_FD_EmptyMove)
+                end_success += 1
+            else
+                EM_opti += 0
+                EM_cpu += 0
+                EM_gap += 0
+                EM_obj += 0
+                EM_all_obj[i] = -1
+            end
+
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = (end_success > 0) ? (round(EM_cpu / end_success, digits=3)) : "x"
+        EM_gap  = (end_success > 0) ? (round(EM_gap / end_success, digits=3)) : "x"
+        EM_obj  = (end_success > 0) ? (round(EM_obj / end_success, digits=3)) : "x"
+
+        EM_var = (end_success >= 2) ? (round(sum([(EM_all_obj[i] - EM_obj)^2 for i=length(EM_all_obj) if (EM_all_obj[i] != -1)]) / (end_success - 1), digits=3)) : ("x")
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj) & $(EM_var)") # EMPTY-MOVE
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
+function batterie_EM(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:5]),
+            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
+            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R300_C40_opt_10.txt" for i=1:10]),
+            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R600_C40_opt_20.txt" for i=1:10]),
+
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            # (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:5]),
+            # (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
+            # (("Contained", 100, 200), ["instanceContained_$(i)_O200_R200_C150_opt_10.txt" for i=1:10]),
+            # (("Contained", 100, 200), ["instanceContained_$(i)_O200_R400_C150_opt_20.txt" for i=1:10]),
+
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C60_opt_1.txt" for i=1:10]),
+            # (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:5]),
+            # (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
+            # (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
+            # (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
+
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            # (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:5]),
+            # (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
+            # (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R200_C100_opt_10.txt" for i=1:10]),
+            # (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R400_C100_opt_20.txt" for i=1:10]),
+
+            (("Indus", 200, 200), ["myTrafic_$(i)_O40_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O100_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            # (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+        fit_algo :: Int64 = 1,
+    )
+    # ==========< Head >==========
+
+    fd = open(result_path, "a")
+
+    algo_name_tmp = (fit_algo == 1) ? ("BFD") : ((fit_algo == 2) ? "FFD" : ((fit_algo == 3) ? "NFD" : "WFD"))
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{6}{l}{$(algo_name_tmp) (\\textsc{OptiMove} all 3 stages)}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & {\\tt VAR} & least loaded at (\$\\%\$) & call & repair\\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+        EM_all_obj::Vector{Float64} = zeros(Float64, length(group_path))
+        EM_least_loaded::Float64 = 0.
+
+        EM_call ::Int64 = 0
+        EM_success ::Int64 = 0
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+
+            sol_FD_EmptyMove = nothing
+            call = 0
+            success = 0
+            start = time()
+
+            if fit_algo == 1
+                sol_FD_EmptyMove, (call, success) = BFD_EM(instance.route, Lmax, O, R)
+            elseif fit_algo == 2
+                sol_FD_EmptyMove, (call, success) = FFD_EM(instance.route, Lmax, O, R)
+            elseif fit_algo == 3
+                sol_FD_EmptyMove, (call, success) = NFD_EM(instance.route, Lmax, O, R)
+            elseif fit_algo == 4
+                sol_FD_EmptyMove, (call, success) = WFD_EM(instance.route, Lmax, O, R)
+            end
+
+            EM_opti += (length(sol_FD_EmptyMove) == lb) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_gap += abs(lb - length(sol_FD_EmptyMove)) / abs(lb)
+            EM_obj += length(sol_FD_EmptyMove)
+            EM_all_obj[i] = length(sol_FD_EmptyMove)
+            EM_call += call
+            EM_success += success
+
+            EM_least_loaded += (minimum([sum(s.load) for s in sol_FD_EmptyMove]) * 100) / (Lmax*O)
+
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_gap  = round(EM_gap / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        EM_least_loaded = round(EM_least_loaded / length(group_path), digits=3)
+
+        EM_var = round(sum([(EM_all_obj[i] - EM_obj)^2 for i=length(EM_all_obj)]) / (length(EM_all_obj) - 1), digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj) & $(EM_var) & $(EM_least_loaded) & $(EM_call) & $(EM_success)") # EMPTY-MOVE
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
+function batterie_SA(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:5]),
+            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
+            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R300_C40_opt_10.txt" for i=1:10]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R600_C40_opt_20.txt" for i=1:10]),
+
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:5]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R200_C150_opt_10.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R400_C150_opt_20.txt" for i=1:10]),
+
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C60_opt_1.txt" for i=1:10]),
+            (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:5]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
+
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:5]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R200_C100_opt_10.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R400_C100_opt_20.txt" for i=1:10]),
+
+            (("Indus", 200, 200), ["myTrafic_$(i)_O40_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O100_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            # (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+        fit_algo :: Int64 = 1,
+    )
+    # ==========< Head >==========
+
+    fd = open(result_path, "a")
+
+    algo_name_tmp = (fit_algo == 1) ? ("BFD") : ((fit_algo == 2) ? "FFD" : ((fit_algo == 3) ? "NFD" : "WFD"))
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{6}{l}{$(algo_name_tmp) (\\textsc{SA})}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & {\\tt VAR} & least loaded at (\$\\%\$) & call & repair\\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+        EM_all_obj::Vector{Float64} = zeros(Float64, length(group_path))
+        EM_least_loaded::Float64 = 0.
+
+        EM_call ::Int64 = 0
+        EM_success ::Int64 = 0
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+
+            sol_FD_EmptyMove = nothing
+            call = 0
+            success = 0
+            start = time()
+
+            if fit_algo == 1
+                sol_FD_EmptyMove, (call, success) = BFD_SA(instance.route, Lmax, O, R)
+            elseif fit_algo == 2
+                sol_FD_EmptyMove, (call, success) = FFD_SA(instance.route, Lmax, O, R)
+            elseif fit_algo == 3
+                sol_FD_EmptyMove, (call, success) = NFD_SA(instance.route, Lmax, O, R)
+            elseif fit_algo == 4
+                sol_FD_EmptyMove, (call, success) = WFD_SA(instance.route, Lmax, O, R)
+            end
+
+            EM_opti += (length(sol_FD_EmptyMove) == lb) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_gap += abs(lb - length(sol_FD_EmptyMove)) / abs(lb)
+            EM_obj += length(sol_FD_EmptyMove)
+            EM_all_obj[i] = length(sol_FD_EmptyMove)
+            EM_call += call
+            EM_success += success
+
+            EM_least_loaded += (minimum([sum(s.load) for s in sol_FD_EmptyMove]) * 100) / (Lmax*O)
+
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_gap  = round(EM_gap / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        EM_least_loaded = round(EM_least_loaded / length(group_path), digits=3)
+
+        EM_var = round(sum([(EM_all_obj[i] - EM_obj)^2 for i=length(EM_all_obj)]) / (length(EM_all_obj) - 1), digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj) & $(EM_var) & $(EM_least_loaded) & $(EM_call) & $(EM_success)") # EMPTY-MOVE
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
+function batterie_GR(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:5]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R300_C40_opt_10.txt" for i=1:10]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R600_C40_opt_20.txt" for i=1:10]),
+
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:5]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R200_C150_opt_10.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R400_C150_opt_20.txt" for i=1:10]),
+
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C60_opt_1.txt" for i=1:10]),
+            (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:5]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
+
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:5]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R200_C100_opt_10.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R400_C100_opt_20.txt" for i=1:10]),
+
+            (("Indus", 200, 200), ["myTrafic_$(i)_O40_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O100_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            # (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+        fit_algo :: Int64 = 1,
+    )
+    # ==========< Head >==========
+
+    fd = open(result_path, "a")
+
+    algo_name_tmp = (fit_algo == 1) ? ("BFD") : ((fit_algo == 2) ? "FFD" : ((fit_algo == 3) ? "NFD" : "WFD"))
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{6}{l}{$(algo_name_tmp) (\\textsc{Gready Rebuild})}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & {\\tt VAR} & least loaded at (\$\\%\$) & call & repair\\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+
+    tl::Int64 = 10
+    env::Gurobi.Env = Gurobi.Env()
+
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+        EM_all_obj::Vector{Float64} = zeros(Float64, length(group_path))
+        EM_least_loaded::Float64 = 0.
+
+        EM_call ::Int64 = 0
+        EM_success ::Int64 = 0
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+
+            sol_FD_EmptyMove = nothing
+            call = 0
+            success = 0
+            start = time()
+
+            if fit_algo == 1
+                sol_FD_EmptyMove, (call, success) = BFD_GR(instance.route, Lmax, O, R, tl=tl, env=env)
+            elseif fit_algo == 2
+                sol_FD_EmptyMove, (call, success) = FFD_GR(instance.route, Lmax, O, R, tl=tl, env=env)
+            elseif fit_algo == 3
+                sol_FD_EmptyMove, (call, success) = NFD_GR(instance.route, Lmax, O, R, tl=tl, env=env)
+            elseif fit_algo == 4
+                sol_FD_EmptyMove, (call, success) = WFD_GR(instance.route, Lmax, O, R, tl=tl, env=env)
+            end
+
+            EM_opti += (length(sol_FD_EmptyMove) == lb) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_gap += abs(lb - length(sol_FD_EmptyMove)) / abs(lb)
+            EM_obj += length(sol_FD_EmptyMove)
+            EM_all_obj[i] = length(sol_FD_EmptyMove)
+            EM_call += call
+            EM_success += success
+
+            EM_least_loaded += (minimum([sum(s.load) for s in sol_FD_EmptyMove]) * 100) / (Lmax*O)
+
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_gap  = round(EM_gap / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        EM_least_loaded = round(EM_least_loaded / length(group_path), digits=3)
+
+        EM_var = round(sum([(EM_all_obj[i] - EM_obj)^2 for i=length(EM_all_obj)]) / (length(EM_all_obj) - 1), digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj) & $(EM_var) & $(EM_least_loaded) & $(EM_call) & $(EM_success)") # EMPTY-MOVE
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
+
+function batterie_Nothing(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
+            (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:10]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R300_C40_opt_10.txt" for i=1:10]),
+            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R600_C40_opt_20.txt" for i=1:10]),
+
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
+            (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R200_C150_opt_10.txt" for i=1:10]),
+            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R400_C150_opt_20.txt" for i=1:10]),
+
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C60_opt_1.txt" for i=1:10]),
+            (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
+            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
+
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
+            (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R200_C100_opt_10.txt" for i=1:10]),
+            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R400_C100_opt_20.txt" for i=1:10]),
+
+            (("Indus", 200, 200), ["myTrafic_$(i)_O40_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O100_R200.txt" for i=1:10]),
+            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            # (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            ]   ,
+        result_path         ::String            = "../data/results.txt",
+        fit_algo::Int64=1,
+    )
+    # ==========< Head >==========
+
+    algo_name_tmp = (fit_algo == 1) ? ("BFD") : ((fit_algo == 2) ? "FFD" : ((fit_algo == 3) ? "NFD" : "WFD"))
+
+    fd = open(result_path, "a")
+
+    write(fd, "\n\n    \\begin{table}[h]\n")
+    write(fd, "        \\centering\n")
+    write(fd, "        \\begin{tabular}{c c c c|c c c c c c}\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{6}{l}{$(algo_name_tmp) (only left allign and smooth assign)}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & {\\tt VAR} & least loaded at (\$\\%\$) \\\\\n")
+    write(fd, "            \\hline\n")
+    write(fd, "            \\hline\n")
+
+    # ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        meanlb  ::Float64 = 0.
+
+        # EMPTY-MOVE
+        EM_opti ::Int64   = 0
+        EM_cpu  ::Float64 = 0.
+        EM_gap  ::Float64 = 0.
+        EM_obj  ::Float64 = 0.
+        EM_all_obj::Vector{Float64} = zeros(Float64, length(group_path))
+        EM_least_loaded::Float64 = 0.
+
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+            
+            Lmax        = instance.Lmax
+            O           = instance.nbOut
+            R           = instance.nbRoute
+            lb::Int64   = minSession(instance)
+
+            meanlb += lb  
+    # ==========< solve EMPTY-MOVE >==========
+            start = time()
+
+            if fit_algo == 1
+                sol_FD_EmptyMove = BFD_Nothing(instance.route, Lmax, O, R)
+            elseif fit_algo == 2
+                sol_FD_EmptyMove = FFD_Nothing(instance.route, Lmax, O, R)
+            elseif fit_algo == 3
+                sol_FD_EmptyMove = NFD_Nothing(instance.route, Lmax, O, R)
+            elseif fit_algo == 4
+                sol_FD_EmptyMove = WFD_Nothing(instance.route, Lmax, O, R)
+            end
+
+            EM_opti += (length(sol_FD_EmptyMove) == lb) ? (1) : (0)
+            EM_cpu += time() - start
+            EM_gap += abs(lb - length(sol_FD_EmptyMove)) / abs(lb)
+            EM_obj += length(sol_FD_EmptyMove)
+            EM_all_obj[i] = length(sol_FD_EmptyMove)
+
+            EM_least_loaded += (minimum([sum(s.load) for s in sol_FD_EmptyMove]) * 100) / (Lmax*O)
+
+            println()
+        end
+
+    # ==========< Compute res >==========
+
+        meanlb /= length(group_path)
+
+        EM_cpu  = round(EM_cpu / length(group_path), digits=3)
+        EM_gap  = round(EM_gap / length(group_path), digits=3)
+        EM_obj  = round(EM_obj / length(group_path), digits=3)
+
+        EM_least_loaded = round(EM_least_loaded / length(group_path), digits=3)
+
+        EM_var = round(sum([(EM_all_obj[i] - EM_obj)^2 for i=length(EM_all_obj)]) / (length(EM_all_obj) - 1), digits=3)
+
+    # ==========< Write line >==========
+
+    write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj) & $(EM_var) & $(EM_least_loaded)") # EMPTY-MOVE
+    write(fd, "\\\\\n")
+    flush(fd)
+
+    # ==========< Tail >==========
+
+    end
+
+    write(fd, "            \\hline\n")
+    write(fd, "        \\end{tabular}\n")
+    write(fd, "        \\caption{TODO}\n")
+    write(fd, "        \\label{table:res}\n")
+    write(fd, "    \\end{table}\n")
+
+    close(fd)
+end
 
 function batterie_EM_GR(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
@@ -1333,47 +2230,3 @@ function Plot_LaTeX(
     close(fd)
 end
 
-
-# ================================================================================= #
-#                           ######  ####### ######  ##   ##                         #
-#                           #     # #       #     # # # # #                         #
-#                           ######  ####    ######  #  #  #                         #
-#                           #       #       #   #   #     #                         #
-#                           #       ####### #    #  #     #                         #
-# ================================================================================= #
-
-function write_instance_perm(path::String, R::Int64, R_max::Int64, nbPerm::Int64 = 10000)
-    fd  = open(path, "w+")
-
-    all_perm = []
-    while length(all_perm) != nbPerm
-        perm = randperm(R_max)[1:R]
-        if !(perm in all_perm)
-            push!(all_perm, perm)
-            for e in perm
-                write(fd, "$(e), ")
-            end
-            write(fd, "\n")
-        end
-    end
-    
-    close(fd)
-end
-
-function read_instance_perm(path::String, n::Int64)::Vector{Vector{Int64}}
-    fd  = open(path, "r")
-
-    all_perm::Vector{Vector{Int64}} = Vector{Vector{Int64}}(undef,n)
-
-    for i=1:n
-        l = split(readline(fd), ", ")
-        all_perm[i] = [parse(Int64, l[i]) for i in 1:length(l)-1]
-    end
-    
-    close(fd)
-    return all_perm
-end
-
-# write_instance_perm("../data/InstancePerm/160R_out_of_200R.txt", 160, 200)
-
-# read_instance_perm("../data/InstancePerm/20R_out_of_200R.txt", 10000)

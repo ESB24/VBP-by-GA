@@ -72,13 +72,6 @@ end
 #                         GA                         #
 # ================================================== #
 
-call = 0
-repairedBuild = 0
-improvedOverAll = 0
-locked = 0
-delta1 = 0.3
-delta2 = 0.9
-
 mutable struct GenVal
     elite           ::Vector{Float64}           # best 20% of previous population or created by FFD in G0 
     ffr             ::Vector{Float64}           # individuals created using FFD heuristic 

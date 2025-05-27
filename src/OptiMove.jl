@@ -195,7 +195,7 @@ function ijshift_V3(
         if newAssignment[oldPos] != 0 # && i != e # if this position isn't empty
             newAssignment[newPos] = newAssignment[oldPos]
 
-            (newLoad[oldPos] <= s.Lmax && newLoad[newPos] <= s.Lmax && newLoad[newPos] + newAssignment[oldPos] > s.Lmax) && (global locked += 1; valid = false; break) # print("!"); 
+            (newLoad[oldPos] <= s.Lmax && newLoad[newPos] <= s.Lmax && newLoad[newPos] + newAssignment[oldPos] > s.Lmax) && (valid = false; break) # print("!"); global locked += 1; 
 
             newLoad[newPos] += newAssignment[newPos]
             newLoad[oldPos] -= newAssignment[newPos]
@@ -724,7 +724,7 @@ function improvedOptiMove_V1(
         C -= 1
         ns, _, nsFit = Neighbor_V3(ns, τ2, TAG_FitSes)
         keepRunning = nsFit < sFit
-        (nsFit < bsFit) && (bsFit = nsFit, bs = ns)
+        (nsFit < bsFit) && (bsFit = nsFit; bs = ns)
         
         while keepRunning
             # print("-")
@@ -733,7 +733,7 @@ function improvedOptiMove_V1(
             isSessionValid(ns) && (return (ns, nsFit, true)) # print("!"); 
             if nsFit < bsFit
                 keepRunning = C > -N
-                (nsFit < bsFit) && (bsFit = nsFit, bs = ns)
+                (nsFit < bsFit) && (bsFit = nsFit; bs = ns)
             else
                 keepRunning = false
             end
@@ -918,18 +918,18 @@ function EmptyMove_V2!(
     newPos::Int64 = e                         # ne position for moved mail
     valid::Bool = true
 
-    # println("e=$e, f=$f, range=$range")
-
-    for oldPos=range
-        if assignment[oldPos] != 0
-            assignment[newPos] = assignment[oldPos]
-            load[newPos] += assignment[newPos]
-            load[oldPos] -= assignment[newPos]
-            
-            newPos = oldPos
+    if ((e != -1) && (f != -1))
+        for oldPos=range
+            if assignment[oldPos] != 0
+                assignment[newPos] = assignment[oldPos]
+                load[newPos] += assignment[newPos]
+                load[oldPos] -= assignment[newPos]
+                
+                newPos = oldPos
+            end
         end
+        assignment[f] = 0
     end
-    assignment[f] = 0
 end
 
 function EmptyMove_V3!(
@@ -974,6 +974,44 @@ function EmptyMove_V3!(
     assignment[f] = 0
 
     return edited
+end
+
+function EmptyMove_V4(
+        s       ::Session                                       ,   # Session to edit
+        r       ::Route{N}                                      ,   # index of the Route
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    ) where N
+    
+    load::Vector{Int64} = deepcopy(s.load)
+    assignment::Vector{Int64} = deepcopy(r.assignment)
+    O::Int64 = length(load)
+    e::Int64 = -1 # least loaded empty output
+    f::Int64 = -1 # most loaded filled output
+    for k=1:O
+        if assignment[k] == 0
+            ((e == -1) || (load[e] > load[k])) && (e = k)
+        else
+            ((f == -1) || (load[f] < load[k])) && (f = k)
+        end
+    end
+    range::StepRange{Int64, Int64} = (e<f) ? ((e+1):f) : ((e-1):-1:f)   # interval from e to f
+    newPos::Int64 = e                         # ne position for moved mail
+    valid::Bool = true
+
+    if ((e != -1) && (f != -1))
+        for oldPos=range
+            if assignment[oldPos] != 0
+                assignment[newPos] = assignment[oldPos]
+                load[newPos] += assignment[newPos]
+                load[oldPos] -= assignment[newPos]
+                
+                newPos = oldPos
+            end
+        end
+        assignment[f] = 0
+    end
+
+    return assignment, load
 end
 
 ## ============================================================================================================== ##
@@ -1137,10 +1175,10 @@ function EmptyMoveNeighborhood_randDistrib_V2(
 end
 
 function EmptyMoveNeighborhood_oneMove(
-    s       ::Session                                       ,   # initial session
-    r       ::Int64                                         ,   # route on which to do the move on 
-    obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
-)
+        s       ::Session                                       ,   # initial session
+        r       ::Int64                                         ,   # route on which to do the move on 
+        obj     ::Type{<:FitnessSession}    = OutputVariance    ,   # regarded objective
+    )
     s = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
 
     EmptyMove_V2!(s, s.route[r], obj)
@@ -1321,31 +1359,34 @@ end
 
 function SimulatedAnnealing_V3(
         s_init          ::Session                                   ; # initial solution
-        obj             ::Type{<:FitnessSession} = OverloadVolume   , # regarded objective
+        obj             ::Type{<:FitnessSession} = LoadSTD          , # regarded objective
         display_plot    ::Bool = false                              , # generate plots
         display_state   ::Bool = false                              , # debug info
+        τ               ::Float64 = .5                              , # initial allowed error %
+        α               ::Float64 = .98                             , # # cooling ratio
+        Emax            ::Int64   = round(Int64, length(s_init.load))*2 , # maximum number of epochs
+        Mmax            ::Int64   = round(Int64, length(s_init.load))*2 , # maximum number of moves per epoch
     )
 
     Lmax    ::Int64     = s_init.Lmax
     R       ::Int64     = length(s_init.route)
 
-    τ_T     ::Float64   = .5                                   # allowed error %
-    T       ::Float64   = fitness(s_init, obj) * .2 * τ_T       # initial temperature
-    α       ::Float64   = 0.98                                  # cooling ratio
+    τ_T     ::Float64   = τ                                  # allowed error %
+    T       ::Float64   = fitness(s_init, obj) * .2 * τ_T         # initial temperature
+    # α       ::Float64   = 0.98                                # cooling ratio
 
-    Emax    ::Int64     = round(Int64, length(s_init.load))*2   # maximum number of epochs
     j       ::Int64     = 1                                     # current epoch
-    Mmax    ::Int64     = round(Int64, length(s_init.load))*2   # maximum number of moves per epoch
     i       ::Int64     = 1                                     # iter in epoch
 
     s_best  ::Session   = s_init                                # best solution
     s_curr  ::Session   = s_init                                # current solution
 
     nogood  ::Int64     = 0                                     # number of consecutive rejected solution
-    nobest  ::Int64     = 0                                     # number of consecutive rejected solution
 
-    route_id::Int64     = 0
+    route_id::Int64     = R+1
     order::Vector{Int64} = []
+
+    # println("NEW RUN -> Emax = $Emax, Mmax=$Mmax, T=$T, i = $i, j = $j, obj = $(round(fitness(s_init, obj), digits=3))")
 
     # =====< Results tracking >=====
     # [1, 1:Emax]  -> T
@@ -1388,33 +1429,25 @@ function SimulatedAnnealing_V3(
                 
                 T *= α                                          # temperature cooling
             else
+                # println("\n\nEND ITER\n")
                 break
             end
         else
-            s_star = s_curr
-            # s_star, _ = EmptyMoveNeighborhood_cascade(s_star, obj=obj) # movement in neighborhood
-            # s_star, _ = EmptyMoveNeighborhood_randOrder(s_star, obj=obj)
-            # s_star, _ = EmptyMoveNeighborhood_randDistrib(s_star, obj=obj)
-            # s_star = EmptyMoveNeighborhood_randOrder_V2(s_star, obj) # movement in neighborhood
-            # s_star = EmptyMoveNeighborhood_randDistrib_V2(s_star, obj) # movement in neighborhood
-            route_id = (route_id % R) +1
+            # route_id = (route_id % R) +1
 
-            # if route_id > R-1
-            #     order = randperm(R)
-            #     route_id = 1
-            # else
-            #     route_id += 1
-            # end
-            s_star = EmptyMoveNeighborhood_oneMove(s_star, route_id, obj)
+            if route_id > R-1
+                order = randperm(R)
+                route_id = 1
+            else
+                route_id += 1
+            end
+            s_star = EmptyMoveNeighborhood_oneMove(s_curr, order[route_id], obj)
             
             ((resEpoch[11, j] === nothing) || (resEpoch[11, j] > fitness(s_star, obj))) && (resEpoch[11, j] = fitness(s_star, obj))
             ((resEpoch[12, j] === nothing) || (resEpoch[12, j] < fitness(s_star, obj))) && (resEpoch[12, j] = fitness(s_star, obj))
 
             if fitness(s_star, obj) < fitness(s_best, obj)  # computed solution better than best solution
                 s_best = s_star                             # update best solution
-                nobest = 0
-            else
-                nobest += 1
             end
             
             Δ = fitness(s_star, obj) - fitness(s_curr, obj)
@@ -1441,21 +1474,16 @@ function SimulatedAnnealing_V3(
             resIter[3, (j-1)*Mmax + i] = fitness(s_best, obj)
 
             if isSessionValid(s_star) # feasibility check
+                s_best = s_star
+                # println("\n\nEND VALID\n")
                 break
             end
 
-            if nogood >= Mmax                                   # temperature is too low
-                if nobest >= Mmax * Emax * .3
-                    τ_T *= 1.15                                 # 125 % of previous temperature
-                    T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
-                    #α -= .01                                    # decrease cooling ration
+            if nogood >= Emax# 2*R # || T <= 0.001                                   # temperature is too low
+                τ_T *= 0.85                                 # 85 % of previous temperature
+                T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
+                α -= .005                                    # increase cooling ration
 
-                    nobest = 0
-                else
-                    τ_T *= 0.85                                 # 85 % of previous temperature
-                    T = fitness(s_init, obj) * .2 * τ_T         # warmum temperature
-                    α -= .005                                    # increase cooling ration
-                end
                 nogood = 0
             end
 
@@ -1495,5 +1523,213 @@ function SimulatedAnnealing_V3(
     end
 
     return s_best, isSessionValid(s_best), (resEpoch, resIter)
+end
+
+function SA_V4(
+        s_init          ::Session                                   ; # initial solution
+        obj1            ::Type{<:FitnessSession} = LoadSTD          , # regarded objective
+        obj2            ::Type{<:FitnessSession} = MostLoadedOut    , # regarded objective
+        display_plot    ::Bool = false                              , # generate plots
+        display_state   ::Bool = false                              , # debug info
+        τ               ::Float64 = .5                              , # initial allowed error %
+        α               ::Float64 = .98                             , # # cooling ratio
+        Emax            ::Int64   = round(Int64, length(s_init.load))*2 , # maximum number of epochs
+        Mmax            ::Int64   = round(Int64, length(s_init.load))*2 , # maximum number of moves per epoch
+    )
+
+    Lmax    ::Int64     = s_init.Lmax
+    R       ::Int64     = length(s_init.route)
+
+    τ_T     ::Float64   = τ                                     # allowed error %
+    T       ::Float64   = fitness(s_init, obj1) * .2 * τ_T      # initial temperature
+    # α       ::Float64   = 0.98                                # cooling ratio
+
+    j       ::Int64     = 1                                     # current epoch
+    i       ::Int64     = 1                                     # iter in epoch
+
+    s_best1 ::Session   = s_init                                # best solution
+    s_best2 ::Session   = s_init                                # best solution
+    s_curr  ::Session   = s_init                                # current solution
+
+    nogood  ::Int64     = 0                                     # number of consecutive rejected solution
+
+    route_id::Int64     = R+1
+    order::Vector{Int64} = []
+
+    # println("NEW RUN -> Emax = $Emax, Mmax=$Mmax, T=$T, i = $i, j = $j, obj = $(round(fitness(s_init, obj), digits=3))")
+
+    # =====< Results tracking >=====
+    # [1, 1:Emax]  -> T
+    # [2, 1:Emax]  -> TODO
+    # [3, 1:Emax]  -> # kept sol
+    # [4, 1:Emax]  -> ∑ kept sol obj
+    # [5, 1:Emax]  -> # degrading sol
+    # [6, 1:Emax]  -> # kept degrading sol
+    # [7, 1:Emax]  -> ∑ degrading sol obj kept
+    # [8, 1:Emax]  -> obj at 0.6% accept chance regarding average s_curr
+    # [9, 1:Emax] -> obj at 50% accept chance regarding average s_curr
+    # [10, 1:Emax] -> obj(s_best)
+    # [11, 1:Emax] -> worst s* of the eppoch
+    # [12, 1:Emax] -> best s* of the eppoch
+    # [13, 1:Emax] -> s_current at end of epoch
+    resEpoch::Array{Union{Float64, Nothing}} = Array{Union{Float64, Nothing}}(nothing, 13, Emax)
+    resEpoch[1:10, :] .= 0.
+
+    # =====< Results tracking >=====
+    # [1, 1:Emax]  -> s_star
+    # [2, 1:Emax]  -> s_curr
+    # [3, 1:Emax]  -> s_best
+    resIter::Array{Union{Float64, Nothing}} = Array{Union{Float64, Nothing}}(nothing, 3, Emax * Mmax)
+
+    (display_state) && (println("\n\n"))
+
+    while true
+        if i > Mmax
+            resEpoch[1, j] = T                       # store epoche temperature
+            resEpoch[8, j] = 5 * T + (resEpoch[4, j] / resEpoch[3, j])
+            resEpoch[9, j] = .69 * T + (resEpoch[4, j] / resEpoch[3, j])
+            resEpoch[10, j] = fitness(s_best1, obj1)   # store epoche obj(s_best)
+            resEpoch[13, j] = fitness(s_curr, obj1)   # store epoche obj(s_best)
+
+            (display_state) && (print("\x1b[3F\x1b[1GEpoch $(j)/$(Emax):\n - temperature: $(round(T, digits=3))          \n - avg kept sol obj: $((resEpoch[3, j] != 0) ? (round(resEpoch[4, j] / resEpoch[3, j], digits=3)) : "∅")          \n - best sol obj: $(round(resEpoch[10, j], digits=3))          "))
+            
+            if j < Emax
+                j += 1                                          # next epoch
+                i = 1
+                
+                T *= α                                          # temperature cooling
+            else
+                # println("\n\nEND ITER\n")
+                break
+            end
+        else
+            # route_id = (route_id % R) +1
+
+            if route_id > R-1
+                order = randperm(R)
+                route_id = 1
+            else
+                route_id += 1
+            end
+            s_star = EmptyMoveNeighborhood_oneMove(s_curr, order[route_id], obj1)
+            
+            ((resEpoch[11, j] === nothing) || (resEpoch[11, j] > fitness(s_star, obj1))) && (resEpoch[11, j] = fitness(s_star, obj1))
+            ((resEpoch[12, j] === nothing) || (resEpoch[12, j] < fitness(s_star, obj1))) && (resEpoch[12, j] = fitness(s_star, obj1))
+
+            if fitness(s_star, obj1) < fitness(s_best1, obj1)  # computed solution better than best solution
+                s_best1 = s_star                             # update best solution
+            end
+
+            if fitness(s_star, obj2) < fitness(s_best2, obj2)  # computed solution better than best solution
+                s_best2 = s_star                             # update best solution
+            end
+            
+            Δ = fitness(s_star, obj1) - fitness(s_curr, obj1)
+            if (Δ ≤ 0) || (rand() < exp(-Δ/T))
+                s_curr = s_star
+                nogood = 0
+
+                resEpoch[3, j] += 1.
+                resEpoch[4, j] += fitness(s_star, obj1)
+
+                if (Δ > 0)
+                    resEpoch[6, j] += 1.
+                    resEpoch[7, j] += fitness(s_star, obj1)
+                end
+            else
+                nogood += 1
+            end
+            if (Δ > 0)
+                resEpoch[5, j] += 1.
+            end
+
+            resIter[1, (j-1)*Mmax + i] = fitness(s_star, obj1)
+            resIter[2, (j-1)*Mmax + i] = fitness(s_curr, obj1)
+            resIter[3, (j-1)*Mmax + i] = fitness(s_best1, obj1)
+
+            # if isSessionValid(s_star) # feasibility check
+            #     s_best1 = s_star
+            #     s_best2 = s_star
+            #     # println("\n\nEND VALID\n")
+            #     break
+            # end
+
+            if nogood >= Emax# 2*R # || T <= 0.001                                   # temperature is too low
+                τ_T *= 0.85                                 # 85 % of previous temperature
+                T = fitness(s_init, obj1) * .2 * τ_T         # warmum temperature
+                α -= .005                                    # increase cooling ration
+
+                nogood = 0
+            end
+
+            i += 1
+        end
+    end
+
+    if display_plot
+        replace!(resEpoch, nothing=>0.)
+        replace!(resIter, nothing=>0.)
+
+        x = 1:Emax
+
+        p1 = plot(x, resEpoch[1, :], lc="blue", lw=1.5, title="Temperature", label="T")
+        (isSessionValid(s_best1)) && (plot!([j, j], [minimum(resEpoch[1, :]), maximum(resEpoch[1, :])], lc="black", lw=1.5, label="opt reached"))
+
+        p2 = plot(x, resEpoch[6, :] ./ resEpoch[5, :] .* 100, title = "Acceptance ratio", label="% of degrading sol used", lw=2)
+        plot!(x, resEpoch[3, :] ./ Emax .* 100, label="% of sol used", lw=2)
+        # plot!(x, resEpoch[5, :] ./ Emax .* 100, label="% of degrading sol", lw=2)
+        (isSessionValid(s_best1)) && (plot!([j, j], [minimum(resEpoch[6, :] ./ resEpoch[5, :] .* 100), maximum(resEpoch[6, :] ./ resEpoch[5, :] .* 100)], lc="black", lw=1.5, label="opt reached"))
+
+        x = 2:Emax
+        p3 = plot(title="Avg epoch solutions", label="valid sol threshold")
+        plot!(x, [resEpoch[11, 2:end], resEpoch[12, 2:end]], fillrange = Vector{Float64}(resEpoch[12, 2:end]), fa = .1, fc="blue", lc="blue", lw=1.5, label=["range of s* values" ""])
+        plot!(x, [resEpoch[9, 2:end], (resEpoch[4, 2:end] ./ resEpoch[3, 2:end])], fillrange = Vector{Float64}((resEpoch[4, 2:end] ./ resEpoch[3, 2:end])), fa = .3, fc="orange", lc="orange", lw=1.5, label=["obj with [50, 100]% acceptation chance" ""])
+        plot!(x, resEpoch[4, 2:end] ./ resEpoch[3, 2:end], lc="green", lw=1.5, label="avg s* kept")
+        # plot!(x, resEpoch[13, 2:end], lc="brown", lw=1.5, label="s_curr at end of epoch")
+        plot!(x, resEpoch[10, 2:end], lc="purple", lw=1.5, label="s_best")
+        (isSessionValid(s_best1)) && (plot!([j, j], [minimum(resEpoch[10, 2:end]), maximum(resEpoch[11, 2:end])], lc="black", lw=1.5, label="opt reached"))
+
+        x = Mmax:(Emax*Mmax)
+        p4 = plot(x, [resIter[1, Mmax:end] resIter[2, Mmax:end] resIter[3, Mmax:end]], lw=1.5, title="Iter solutions", label=["s*" "s_curr" "s_best"])
+        (isSessionValid(s_best1)) && (plot!([j, j], [minimum(resIter[3, Mmax:end]), maximum(resIter[1, Mmax:end])], lc="black", lw=1.5, label="opt reached"))
+
+
+        display(plot(p1, p2, p3, p4, layout=(4,1), size = (1200, 1600)))
+    end
+
+    return s_best1, s_best2, isSessionValid(s_best1), isSessionValid(s_best2), (resEpoch, resIter)
+end
+
+function EM_VE(
+        s               ::Session                                   ,   # initial session
+        obj1            ::Type{<:FitnessSession} = LoadSTD          , # regarded objective
+        obj2            ::Type{<:FitnessSession} = MostLoadedOut    , # regarded objective
+    )
+
+    i       ::Int64     = 0
+    Lmax    ::Int64     = s.Lmax
+    F       ::Bool      = true
+    sb      ::Session   = s
+
+    while F
+        F = false
+        for r in s.route
+            assignment, load = EmptyMove_V4(s, r, obj1)
+
+            if fitness(load, Lmax, obj1) < fitness(s.load, Lmax, obj1)
+                i += 1
+                s.load = load
+                r.assignment = assignment
+
+                F = true
+
+                if fitness(load, Lmax, obj2) < fitness(s.load, Lmax, obj2)
+                    sb = Session(s.Lmax, [Route(r.id, deepcopy(r.assignment), r.mail) for r in s.route], deepcopy(s.load))
+                end
+            end
+        end
+    end
+
+    return s, sb, i
 end
 

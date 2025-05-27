@@ -120,7 +120,7 @@ function test_FFD_EM()
 end
 
 function test_NFD_EM()
-    instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt"
+    instance_name::String = "instanceSkewed_3_O200_R100_C60_opt_5.txt"
     instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
     Lmax = instance.Lmax
     O = instance.nbOut
@@ -134,7 +134,7 @@ function test_NFD_EM()
 end
 
 function test_WFD_EM()
-    instance_name::String = "instanceSkewed_1_O200_R100_C60_opt_5.txt"
+    instance_name::String = "instanceSkewed_1_O200_R20_C60_opt_1.txt"
     instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
     Lmax = instance.Lmax
     O = instance.nbOut
@@ -143,6 +143,19 @@ function test_WFD_EM()
     start = time()
     
     res = WFD_SAV3_EM(instance.route, Lmax, O, R)
+
+    return res, time() - start 
+end
+
+function test_BFD_EM(instance_name::String = "instanceIndus_1_O200_R600_C40_opt_20.txt")
+    instance, nbSession = parseAnyInstance(instance_name) # trafic_200_200_35_1.xlsx
+    Lmax = instance.Lmax
+    O = instance.nbOut
+    R = instance.nbRoute
+
+    start = time()
+    
+    res = BFD_EM(instance.route, Lmax, O, R)
 
     return res, time() - start 
 end
@@ -211,7 +224,7 @@ function RunSA_V2(inst_name::String = "instanceSkewed_1_O200_R20_C80_opt_1.txt")
     return s, flag, res
 end
 
-function RunSA_V3(inst_name::String = "instanceSkewed_1_O200_R20_C80_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
+function RunSA_V3(inst_name::String = "instanceContained_1_O20_R20_C150_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
     instance, nbSession = parseAnyInstance(inst_name)
 
     glob_s = shuffle!(Session(instance.Lmax, instance.route))
@@ -250,7 +263,7 @@ function RunSA_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.tx
     println("merge ratio=$(best_sol/(sum_sol/run))\navg solution obj = $((sum_sol/run))")
 end
 
-function RunSA_V3_mergeRatio(inst_name = "instanceSkewed_1_O200_R20_C80_opt_1.txt")
+function RunSA_V3_mergeRatio(inst_name = "instanceIndus_1_O200_R30_C40_opt_1.txt")
     # "instanceIndus_1_O200_R30_C40_opt_1.txt"
     # "instanceContained_1_O200_R20_C150_opt_1.txt"
     # "instanceChunk_1_O200_R20_C100_opt_1.txt"
@@ -264,13 +277,168 @@ function RunSA_V3_mergeRatio(inst_name = "instanceSkewed_1_O200_R20_C80_opt_1.tx
     run = 10
     for i=1:run
         
-        s, flag, res = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=true, display_state=true)
+        s, flag, res = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=true, display_state=true, α=.96, τ=0.5, obj=LoadSTD)
 
         sum_sol += fitness(s, OverloadVolume)
         (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
         println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume))\n\n\n")
     end
     println("merge ratio=$(best_sol/(sum_sol/run))\navg solution obj = $((sum_sol/run))")
+end
+
+function Tuning_attr_α_SA_V3()
+    range_α = 0.89:0.01:0.99
+
+    plt = plot(
+        1,
+        xlim = ((range_α)[begin], (range_α)[end]),
+        xlabel = "α",
+        # zlim = (minimum(res), maximum(res)),
+        ylabel = "average obj",
+        title = "α parameter",
+        marker = 2,
+    )
+
+    display(plt)
+
+    res = zeros(Float64, length(range_α))
+    best_sol = nothing
+    
+    run = 4 * 5
+    
+    instances = [
+                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:round(Int64, run/4)]
+            ]
+
+    for (i_α, α) in enumerate(range_α)
+        for i=1:run
+            instance, nbSession = parseAnyInstance(instances[i])
+            glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+            s, flag, _ = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=false, display_state=false, α=α, τ=.91)
+
+            res[i_α] += fitness(s, OverloadVolume)
+            (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
+            println("resolution: $i/$run -> $(fitness(s, OverloadVolume)) with α=$α")
+        end
+        println("merge ratio=$(best_sol/(res[i_α]/run))\navg solution obj = $((res[i_α]/run))")
+            
+        push!(plt, α, round(res[i_α]/run, digits=3))
+        display(plt)
+    end
+
+    # build an animated gif by pushing new points to the plot, saving every 10th frame
+    tmp = round.(res ./ run, digits=3)
+    return tmp, join(enumerate(tmp), " -- ")
+end
+
+function Tuning_attr_τ_SA_V3()
+    range_τ = 0.2:0.2:2.
+
+    plt = plot(
+        1,
+        xlim = ((range_τ)[begin], (range_τ)[end]),
+        xlabel = "τ",
+        # zlim = (minimum(res), maximum(res)),
+        ylabel = "average obj",
+        title = "τ parameter impact",
+        marker = 2,
+    )
+
+    display(plt)
+
+    res = zeros(Float64, length(range_τ))
+    best_sol = nothing
+    
+    run = 4 * 5
+    
+    instances = [
+                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:round(Int64, run/4)]
+            ]
+
+    for (i_τ, τ) in enumerate(range_τ)
+        for i=1:run
+            instance, nbSession = parseAnyInstance(instances[i])
+            glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+            s, flag, _ = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=false, display_state=false, α=.96, τ=τ, obj=LoadSTD)
+
+            res[i_τ] += fitness(s, OverloadVolume)
+            (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
+            println("resolution: $i/$run -> $(fitness(s, OverloadVolume)) with τ=$τ")
+        end
+        println("merge ratio=$(best_sol/(res[i_τ]/run))\navg solution obj = $((res[i_τ]/run))")
+            
+        push!(plt, τ, round(res[i_τ]/run, digits=3))
+        display(plt)
+    end
+
+    # build an animated gif by pushing new points to the plot, saving every 10th frame
+    tmp = round.(res ./ run, digits=3)
+    return tmp, join(enumerate(tmp), " -- ")
+end
+
+function Tuning_attr_move_SA_V3()
+    range_move = 50:50:400
+
+    plt1 = plot(
+        1,
+        xlim = ((range_move)[begin], (range_move)[end]),
+        xlabel = "Emax=Mmax",
+        # zlim = (minimum(res), maximum(res)),
+        ylabel = "average obj",
+        title = "Emax and Mmax parameter impact on solution",
+        marker = 2,
+    )
+
+    plt2 = plot(
+        1,
+        xlim = ((range_move)[begin], (range_move)[end]),
+        xlabel = "Emax=Mmax",
+        # zlim = (minimum(res), maximum(res)),
+        ylabel = "average cpu",
+        title = "Emax and Mmax parameter impact on cpu",
+        marker = 2,
+    )
+
+    plt = plot(plt1, plt2)
+
+    display()
+
+    res = zeros(Float64, length(range_move))
+    best_sol = nothing
+    
+    run = 4 * 2
+    
+    instances = [
+                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:round(Int64, run/4)];
+                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:round(Int64, run/4)]
+            ]
+
+    for (i_move, move) in enumerate(range_move)
+        for i=1:run
+            instance, nbSession = parseAnyInstance(instances[i])
+            glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+            s, flag, _ = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=false, display_state=true, Emax=move, Mmax=move)
+
+            res[i_move] += fitness(s, OverloadVolume)
+            (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
+            println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume)) with move=$move\n")
+        end
+        println("merge ratio=$(best_sol/(res[i_move]/run))\navg solution obj = $((res[i_move]/run))")
+            
+        push!(plt, move, round(res[i_move]/run, digits=3))
+        display(plt)
+    end
 end
 
 function RunGR_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.txt")
@@ -378,4 +546,3 @@ function attr_bench_GR_V4()
         println("δ1 = $d1 -> $(res_opti[i, :])")
     end
 end
-

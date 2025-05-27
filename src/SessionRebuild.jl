@@ -1135,7 +1135,7 @@ function rebuildSession_knapSack_model_V4!(
     repeated_k          ::Int64         = 0                             # how many times last_k has been reoptimisation
     passed_step         ::Vector{Bool} = [false, false, false]
 
-    while k <= O && total_count_reopt <= total_max_reopt
+    while 1 <= k <= O && total_count_reopt <= total_max_reopt
 
         if (k >= 3O/4) && !(passed_step[3])
             total_max_reopt += ceil(Int64, O/4)

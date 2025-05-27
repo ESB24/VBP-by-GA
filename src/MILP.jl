@@ -179,13 +179,13 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     N = length(sol.sessions)
 
     # is the set of all rounds
-    R::Vector{Int64} = collect(1:instance.nbRound)
+    R::Vector{Int64} = collect(1:instance.nbRoute)
 
     # is the set of batches for the round r ∈ R
-    Br::Vector{Vector{Int64}} = [[k for (k, v) in enumerate(r.assignment) if v != 0] for r in instance.rounds]
+    Br::Vector{Vector{Int64}} = [[k for (k, v) in enumerate(r.assignment) if v != 0] for r in instance.route]
 
     # is the volume of the j-th batch in the round r ∈ R. Here, j ∈ B(r)
-    vrj::Vector{Vector{Int64}} = [[v for v in r.assignment if v != 0] for r in instance.rounds]
+    vrj::Vector{Vector{Int64}} = [[v for v in r.assignment if v != 0] for r in instance.route]
 
     # is the set of available machine outputs
     O::Vector{Int64} = collect(1:instance.nbOut) 
@@ -197,7 +197,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     Urk::Vector{Vector{Vector{Int64}}} = [[[k for (k, v) in enumerate(Orj[r]) if o in v] for o in O] for r in R]
 
     # is the maximal load per output for any sorting session
-    Lmax = instance.C
+    Lmax = instance.Lmax
 
     # is the set of sorting sessions, where N is an upper bound on its number
     S::Vector{Int64} = collect(1:N)
@@ -228,11 +228,11 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     for (sId::Int64, s::Session) in enumerate(sol.sessions)
         set_start_value(z[sId], 1)
 
-        for (rId::Int64, r::Round) in enumerate(s.rounds)
+        for (rId::Int64, r) in enumerate(s.route)
             set_start_value(y[r.id, sId], 1)
 
             batch::Int64 = 1
-            batchMax::Int64 = length(r.batches)
+            batchMax::Int64 = length(r.mail)
             out::Int64 = 1
 
             while batch <= batchMax
@@ -320,9 +320,9 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
 # ==========< Results >==========
 
     if termination_status(model) == OPTIMAL || MOI.get(model, Gurobi.ModelAttribute("SolCount")) > 0
-        perm::Vector{Int64} = zeros(Int64, instance.nbRound)
+        perm::Vector{Int64} = zeros(Int64, instance.nbRoute)
         permId::Int64 = 1
-        sol::Solution = Solution(perm, [Session(instance.C, instance.nbOut) for s in S if s != 0])
+        sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if s != 0])
         for s in S
             if value(z[s]) != 0
 
@@ -331,7 +331,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
                     if value(y[r, s]) == 1
                         perm[permId] = r
                         permId += 1
-                        push!(sol.sessions[s].rounds, Round(r, zeros(Int64, length(O)), instance.rounds[r].batches))
+                        push!(sol.sessions[s].route, Route(r, zeros(Int64, length(O)), instance.route[r].mail))
                         roundId += 1
                         for k in O
                             val::Int64 = 0
@@ -343,8 +343,8 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
                                 end
                             end
 
-                            sol.sessions[s].rounds[roundId].assignment[k] = val
-                            sol.sessions[s].loads[k] += val
+                            sol.sessions[s].route[roundId].assignment[k] = val
+                            sol.sessions[s].load[k] += val
                         end
 
                     end
@@ -352,6 +352,111 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
 
             end
         end
+        return model, sol
+    else
+        return model, nothing
+    end
+end
+
+
+function MILP_load_ballance_warmstart(ses::Session, tl::Int64 = 600)::Tuple{Model, Union{Nothing, Session}}
+# ===========< Parameters: >===========
+    R::Vector{Int64} = collect(1:length(ses.route))
+    O::Vector{Int64} = collect(1:length(ses.route[1].assignment))
+
+    # is the set of batches for the round r ∈ R
+    Br::Vector{Vector{Int64}} = [collect(1:length(r.mail)) for r in ses.route]
+    vrj::Vector = [r.mail for r in ses.route]
+
+    # is the interval of potential outputs for the j-th batch in the round r ∈ R
+    Orj::Vector{Vector{Vector{Int64}}} = [[collect(j: length(O) - length(Br[r]) + j) for j in Br[r]] for r in R]
+
+    # is the set of mail bathes of round r, which can be potentially assigned to the output k ∈ O
+    Urk::Vector{Vector{Vector{Int64}}} = [[[k for (k, v) in enumerate(Orj[r]) if o in v] for o in O] for r in R]
+    
+    # is the maximal load per output for any sorting session
+    Lmax = ses.Lmax
+
+# ===========< Model: >===========
+
+    model = Model(Gurobi.Optimizer)
+    # set_silent(model)
+    # set_optimizer_attribute(model, "OutputFlag", 0)
+    set_optimizer_attribute(model, "TimeLimit", tl)
+
+# ===========< Variables: >===========
+
+    # 1 if the j-th batch of round r is assigned to the output k ∈ O(r)j, 0 otherwise
+    @variable(model, x[r in R, j in Br[r], k in Orj[r][j]], Bin)
+
+    # 1 if round r is allocated to session s and the j-th batch of round r is assigned to the output k ∈ O(r) j , 0 otherwise
+    @variable(model, 0 ≤ L, Int)
+
+# ===========< Warmup: >===========
+
+    for (rId, r) in enumerate(ses.route)
+        batch::Int64 = 1
+        batchMax::Int64 = length(r.mail)
+        out::Int64 = 1
+
+        while batch <= batchMax
+            if r.assignment[out] != 0
+                set_start_value(x[r.id, batch, out], 1)
+                batch += 1
+            end
+            out += 1
+        end
+    end
+
+# ===========< Objective: >===========
+
+    # (0) -> minimize most loaded output
+    @objective(model, Min, L)
+
+# ===========< Constraint: >===========
+
+    # (1) -> each mail must be assigned
+    for r in R
+        for j in Br[r]
+            @constraint(model, sum([x[r, j, k] for k in Orj[r][j]]) == 1)
+        end
+    end
+
+    # (2) -> precedence mail constraints for each round r
+    for r in R
+        for j in Br[r]
+            if j != length(Br[r])
+                @constraint(model, sum([k * x[r, j, k] for k in Orj[r][j]]) <= sum([k * x[r, j+1, k] for k in Orj[r][j + 1]]) - 1.0)
+            end
+        end
+    end
+
+    # (3) -> the total load for each output of each session, which can not be greater than Lmax if the session is considered as not empty
+    for k in O
+        @constraint(model, sum([sum([(vrj[r][j] * x[r, j, k]) for j in Urk[r][k]]) for r in R]) <= L)
+    end
+
+    optimize!(model)
+
+# ==========< Results >==========
+
+    if termination_status(model) == OPTIMAL || MOI.get(model, Gurobi.ModelAttribute("SolCount")) > 0
+        sol::Session = deepcopy(ses)
+        
+        for r in R
+            sol.route[r].assignment = zeros(Int64, length(O))
+
+            for j in Br[r]
+                for k in Orj[r][j]
+                    if round(Int64, value(x[r, j, k])) == 1 
+                        sol.route[r].assignment[k] = sol.route[r].mail[j]
+                    end
+                end
+            end
+        end
+        
+        compute_output!(sol)
+
         return model, sol
     else
         return model, nothing

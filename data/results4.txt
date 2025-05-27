@@ -1,0 +1,73 @@
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c|c c c c c}
+            \hline
+            \multicolumn{3}{l|}{Instance} & \multicolumn{5}{l|}{(\textsc{Simulated-Annealing-V3})}\\
+            type & $|O|$ & $|R|$ & \#{\tt OPTI} & {\tt CPU} & {\tt OBJ} & {\tt VAR} & {\tt MERGE} \\
+            \hline
+            \hline
+Indus. like & 200 & 30 & 0 & 34.192 & 20.8 & 15.471 & 0.048\\
+Contained & 200 & 20 & 0 & 24.754 & 202.2 & 1.604 & 0.875\\
+Skewed & 200 & 20 & 0 & 22.752 & 184.9 & 515.29 & 0.606\\
+Chunk & 200 & 20 & 0 & 21.772 & 216.3 & 6.588 & 0.929\\
+            \hline
+        \end{tabular}
+        \caption{TODO}
+        \label{table:res}
+    \end{table}
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c|c c c c c}
+            \hline
+            \multicolumn{3}{l|}{Instance} & \multicolumn{5}{l|}{(\textsc{Simulated-Annealing-V3})}\\
+            type & $|O|$ & $|R|$ & \#{\tt OPTI} & {\tt CPU} & {\tt OBJ} & {\tt VAR} & {\tt MERGE} \\
+            \hline
+            \hline
+Indus. like & 200 & 30 & 0 & 31.715 & 29.3 & 55.254 & 0.068\\
+Contained & 200 & 20 & 0 & 25.581 & 197.0 & 2.778 & 0.893\\
+Skewed & 200 & 20 & 0 & 24.041 & 162.1 & 168.134 & 0.703\\
+Chunk & 200 & 20 & 0 & 22.49 & 218.9 & 5.29 & 0.891\\
+            \hline
+        \end{tabular}
+        \caption{TODO}
+        \label{table:res}
+    \end{table}
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{6}{l}{WFD (\textsc{OptiMove} all 3 stages)}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} & {\tt VAR} & least loaded at ($\%$) & call & repair\\
+            \hline
+            \hline
+Indus. like & 200 & 30 & 1.0 & 0 & 0.414 & 1.0 & 2.0 & 0.0 & 28.369 & 10 & 0\\
+Indus. like & 200 & 60 & 2.0 & 0 & 0.255 & 0.5 & 3.0 & 0.0 & 57.617 & 12 & 0\\
+Indus. like & 200 & 150 & 5.0 & 0 & 0.379 & 0.2 & 6.0 & 0.0 & 82.417 & 124 & 4\\
+Indus. like & 200 & 300 & 10.0 & 0 & 0.807 & 0.2 & 12.0 & 0.0 & 66.326 & 731 & 10\\
+Indus. like & 200 & 600 & 20.0 & 0 & 1.731 & 0.15 & 23.0 & 0.0 & 79.462 & 2749 & 35\\
+Contained & 200 & 20 & 1.0 & 0 & 0.2 & 1.0 & 2.0 & 0.0 & 9.585 & 10 & 0\\
+Contained & 200 & 40 & 2.0 & 0 & 0.09 & 0.5 & 3.0 & 0.0 & 17.978 & 10 & 0\\
+Contained & 200 & 100 & 5.0 & 0 & 0.147 & 0.2 & 6.0 & 0.0 & 43.707 & 50 & 0\\
+Contained & 200 & 200 & 10.0 & 0 & 0.213 & 0.1 & 11.0 & 0.0 & 85.149 & 109 & 1\\
+Contained & 200 & 400 & 20.0 & 0 & 0.427 & 0.1 & 22.0 & 0.0 & 74.472 & 446 & 1\\
+Skewed & 200 & 20 & 1.0 & 0 & 0.048 & 1.8 & 2.8 & 0.071 & 25.449 & 32 & 0\\
+Skewed & 200 & 40 & 2.0 & 0 & 0.181 & 1.0 & 4.0 & 0.0 & 48.171 & 38 & 0\\
+Skewed & 200 & 100 & 5.0 & 0 & 0.488 & 1.1 & 10.5 & 0.028 & 44.117 & 784 & 17\\
+Skewed & 200 & 200 & 10.0 & 0 & 1.192 & 0.99 & 19.9 & 0.134 & 46.922 & 3125 & 43\\
+Skewed & 200 & 400 & 20.0 & 0 & 3.776 & 0.925 & 38.5 & 0.028 & 49.514 & 11620 & 112\\
+Chunk & 200 & 20 & 1.0 & 0 & 0.016 & 1.0 & 2.0 & 0.0 & 14.625 & 11 & 1\\
+Chunk & 200 & 40 & 2.0 & 0 & 0.036 & 0.5 & 3.0 & 0.0 & 24.789 & 11 & 1\\
+Chunk & 200 & 100 & 5.0 & 0 & 0.099 & 0.2 & 6.0 & 0.0 & 60.466 & 74 & 2\\
+Chunk & 200 & 200 & 10.0 & 0 & 0.259 & 0.19 & 11.9 & 0.001 & 38.693 & 298 & 12\\
+Chunk & 200 & 400 & 20.0 & 0 & 0.635 & 0.145 & 22.9 & 0.001 & 37.842 & 934 & 28\\
+            \hline
+        \end{tabular}
+        \caption{TODO}
+        \label{table:res}
+    \end{table}

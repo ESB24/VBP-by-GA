@@ -137,18 +137,24 @@ struct OverloadOutput       <: FitnessSession end # Min
 struct OverloadVolume       <: FitnessSession end # Min
 struct OutputVariance       <: FitnessSession end # Min
 struct MaxOverload          <: FitnessSession end # Min
+struct Evgeny               <: FitnessSession end # Min
+struct MostLoadedOut        <: FitnessSession end # Min
 
 # Minimalistic Session
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadOutput})           = count(x -> x > Lmax, loads)
-@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadVolume})           = sqrt(sum([(l - Lmax) for l in loads if l ≥ Lmax]))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OverloadVolume})           = sum([(l - Lmax) for l in loads if l ≥ Lmax])
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{OutputVariance})           = sum([(l - mean(loads))^2 for l in loads])/length(loads)
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{MaxOverload})              = maximum([l - Lmax for l in loads if l ≥ Lmax])
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{Evgeny})                   = sqrt(sum([(maximum(loads) - loads[k])^2 for k=1:length((loads))]))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{MostLoadedOut})            = maximum(loads)
 
 # Full Session
 @inline specialized(s::Session,::Type{OverloadOutput})      = specialized(s.load, s.Lmax, OverloadOutput)
 @inline specialized(s::Session,::Type{OverloadVolume})      = specialized(s.load, s.Lmax, OverloadVolume)
 @inline specialized(s::Session,::Type{OutputVariance})      = specialized(s.load, s.Lmax, OutputVariance)
 @inline specialized(s::Session,::Type{MaxOverload})         = specialized(s.load, s.Lmax, MaxOverload)
+@inline specialized(s::Session,::Type{Evgeny})              = specialized(s.load, s.Lmax, Evgeny)
+@inline specialized(s::Session,::Type{MostLoadedOut})       = specialized(s.load, s.Lmax, Evgeny)
 
 """
 ```Julia
@@ -752,14 +758,13 @@ function addRoute_Rebuild!(s::Session, r::Route{N})::Tuple{Session, Bool} where 
     # session capacity
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, flag = rebuildSession(ns)
     
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -767,14 +772,12 @@ function addRoute_Rebuild_Knapsack!(s::Session, r::Route{N})::Tuple{Session, Boo
     # session capacity
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
-    (global call += 1)
-
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, flag = rebuildSession_knapSack(ns)
     
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -782,44 +785,38 @@ function addRoute_Rebuild_Knapsack_model!(s::Session, r::Route{N}, env::Gurobi.E
     # session capacity
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
-    (global call += 1)
-
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, flag = rebuildSession_knapSack_model(ns, env)
     
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
 function addRoute_Rebuild_Knapsack_model_V2!(s::Session, r::Route{N}, tl::Int64=10, env::Gurobi.Env = Gurobi.Env())::Tuple{Session, Bool} where N
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, flag = rebuildSession_knapSack_model_V2(ns, tl, env)
     
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
 function addRoute_Rebuild_Knapsack_model_V3!(s::Session, r::Route{N}, tl::Int64=10, env::Gurobi.Env = Gurobi.Env())::Tuple{Session, Bool} where N
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, flag = rebuildSession_knapSack_model_V3!(ns, tl, env)
     
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
 function addRoute_EmptyMove_V2(s::Session, r::Route{N})::Tuple{Session, Bool} where N
-    (global call += 1)
-
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
@@ -833,15 +830,13 @@ function addRoute_OPTIMOVE_stage1!(s::Session, r::Route{N}, TAG_FitSes::Type{<:F
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
     sFit::Float64 = fitness(s, TAG_FitSes)
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_S1_V2!(ns, TAG_FitSes)
     
-    (nsFit < sFit) && (global improvedOverAll += 1)
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -850,15 +845,13 @@ function addRoute_OPTIMOVE_Stage1Valid!(s::Session, r::Route{N}, TAG_FitSes::Typ
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
     sFit::Float64 = fitness(s, TAG_FitSes)
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_S1_V3!(ns, TAG_FitSes)
     
-    (nsFit < sFit) && (global improvedOverAll += 1)
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -867,15 +860,13 @@ function addRoute_OPTIMOVE_Stage1ValidInf!(s::Session, r::Route{N}, TAG_FitSes::
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
     sFit::Float64 = fitness(s, TAG_FitSes)
-    (global call += 1)
     
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_S1_V4!(ns, TAG_FitSes)
     
-    (nsFit < sFit) && (global improvedOverAll += 1)
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -884,15 +875,13 @@ function addRoute_OPTIMOVE_oneMove!(s::Session, r::Route{N}, TAG_FitSes::Type{<:
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
     sFit::Float64 = fitness(s, TAG_FitSes)
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_S1_V5!(ns, TAG_FitSes)
     
-    (nsFit < sFit) && (global improvedOverAll += 1)
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -901,15 +890,12 @@ function addRoute_OPTIMOVE_3Stages!(s::Session, r::Route, TAG_FitSes::Type{<:Fit
     # certificat_CapacityVolume(s, r) || (return (s, false)::Tuple{Session, Bool}) # print("<oc>"),  
 
     # sFit::Float64 = fitness(s, TAG_FitSes)
-    # (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_V1(ns, TAG_FitSes)
     
-    # (nsFit < sFit) && (global improvedOverAll += 1)
-    # (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
@@ -920,17 +906,13 @@ function addRoute_OPTIMOVE_Stage1NegSTD!(s::Session, r::Route{N}, TAG_FitSes::Ty
     # println("\n\n$s\n")
 
     sFit::Float64 = fitness(s, TAG_FitSes)
-    (global call += 1)
 
     ns::Session = Session(s.Lmax, [Route(cr.id, deepcopy(cr.assignment), cr.mail) for cr in s.route], s.load + r.assignment)
     push!(ns.route, Route(r.id, deepcopy(r.assignment), r.mail))
 
     ns, nsFit, flag = improvedOptiMove_S1_V6!(ns, TAG_FitSes)
     
-    # println("\n\n$ns\n")
-
-    (nsFit < sFit) && (global improvedOverAll += 1)
-    (flag) && (global repairedBuild += 1; s.route = ns.route; s.load = ns.load)
+    (flag) && (s.route = ns.route; s.load = ns.load)
     return (ns, flag)::Tuple{Session, Bool}
 end
 
