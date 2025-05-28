@@ -318,13 +318,23 @@ function generateRoutes_BigBatche(
             end
         end
 
-        if !isBig
+        if !isBig && (smallBatches[1] < maxLoad)
             size = smallBatches[1]:(maxLoad >= smallBatches[end] ? smallBatches[end] : maxLoad)
             pos = sortperm(loads, rev=true)[1]
 
             b = rand(size)
 
             loads[pos] - b < 0 && (println("error2"); global error += 1)
+
+            push!(batches[pos], b)
+            loads[pos] -= b
+            nbBatches += 1
+        elseif maxLoad == 1
+            pos = sortperm(loads, rev=true)[1]
+
+            b = 1
+
+            loads[pos] - b < 0 && (print("\x1b[31m-\x1b[0m"); continue)
 
             push!(batches[pos], b)
             loads[pos] -= b
@@ -432,7 +442,7 @@ function writeSolution_BigBatche(path::String, sol::Solution, id::Int64 = 0)
     nbSession::Int64 = length(sol.sessions)
     
 
-    filename = "instanceBigBatche_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceSkewed_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)
@@ -466,7 +476,7 @@ function writeSolution_BigBatche(path::String, sol::Solution, id::Int64 = 0)
     close(fd)
 end
 
-function writeInstanceBatterie_BigBatche(
+function writeInstanceBatterie_Skewed(
         path                ::String            ,
         nbInstance          ::Int64             ,
         nbSession           ::Int64             ,
@@ -482,7 +492,78 @@ function writeInstanceBatterie_BigBatche(
 
     for i=1:nbInstance
         sol = generateSolution_BigBatche(nbSession, nbRoute, smallBatches, bigBatches, amontBigBatches, minBatches, maxBatches, Lmax, O)
+        if isSolutionValid(nbRoute*nbSession, sol, true)
+            println("\x1b[32m <VALID: instance $i valid> \x1b[0m")
+        else
+            println("\x1b[31m <ERROR: instance $i invalid> \x1b[0m")
+        end
         writeSolution_BigBatche(path, sol, i)
+    end
+end
+
+function writeSolution_Chunk(path::String, sol::Solution, id::Int64 = 0)
+    O::Int64 = length(sol.sessions[1].load)
+    nbRoutes::Int64 = sum([length(s.route) for s in sol.sessions])
+    Lmax::Int64 = sol.sessions[1].Lmax
+    nbSession::Int64 = length(sol.sessions)
+    
+
+    filename = "instanceChunk_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
+        
+    # Create file
+    println("instance generated : "*filename)
+    fd = open("$(path)/$(filename)", "w+")
+
+    write(fd, "\n$O\n$nbRoutes\n$Lmax\n$nbSession\n\n")
+
+    # for e in sol.permutation
+    #     write(fd, "$(e), ")
+    # end
+    # write(fd, "\n\n")
+
+    for s in sol.sessions
+        for r in s.route
+            write(fd, "$(r.id): ")
+
+            for a in r.assignment
+                write(fd, "$(a), ")
+            end
+
+            write(fd, ": ")
+
+            for b in r.mail
+                write(fd, "$(b), ")
+            end
+            write(fd, "\n")
+        end
+        write(fd, "\n\n")
+    end
+    
+    close(fd)
+end
+
+function writeInstanceBatterie_Chunk(
+        path                ::String            ,
+        nbInstance          ::Int64             ,
+        nbSession           ::Int64             ,
+        nbRoute             ::Int64             ,
+        O                   ::Int64             ,
+        Lmax                ::Int64             , 
+        minBatches          ::Int64             ,
+        maxBatches          ::Int64             ,
+        smallBatches        ::UnitRange{Int64}  ,
+        bigBatches          ::UnitRange{Int64}  ,
+        amontBigBatches     ::UnitRange{Int64}  ,
+    )
+
+    for i=1:nbInstance
+        sol = generateSolution_BigBatche(nbSession, nbRoute, smallBatches, bigBatches, amontBigBatches, minBatches, maxBatches, Lmax, O)
+        if isSolutionValid(nbRoute*nbSession, sol, true)
+            println("\x1b[32m <VALID: instance $i valid> \x1b[0m")
+        else
+            println("\x1b[31m <ERROR: instance $i invalid> \x1b[0m")
+        end
+        writeSolution_Chunk(path, sol, i)
     end
 end
 
@@ -813,6 +894,11 @@ function writeInstanceBatterie_Distrib(
 
     for i=1:nbInstance
         sol = generateSolution_Distrib(nbSession, nbRoute, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, fct_distrib)
+        if isSolutionValid(nbRoute*nbSession, sol, true)
+            println("\x1b[32m <VALID: instance $i valid> \x1b[0m")
+        else
+            println("\x1b[31m <ERROR: instance $i invalid> \x1b[0m")
+        end
         writeSolution_Distrib(path, sol, i)
     end
 end
@@ -1020,6 +1106,11 @@ function writeInstanceBatterie_Distrib_V2(
 
     for i=1:nbInstance
         sol = generateSolution_Distrib_V2(nbSession, nbRoute, smallerBatches, biggestBatches, minBatches, maxBatches, Lmax, O, fct_distrib, fct_distribNumber)
+        if isSolutionValid(nbRoute*nbSession, sol, true)
+            println("\x1b[32m <VALID: instance $i valid> \x1b[0m")
+        else
+            println("\x1b[31m <ERROR: instance $i invalid> \x1b[0m")
+        end
         writeSolution_Distrib(path, sol, i)
     end
 end
@@ -1059,7 +1150,7 @@ function generateMultipleGaussianSum(O::Int64, n::Int64, rangeNbGaussian::UnitRa
         nbGaussian = rand(rangeNbGaussian)                                              # random number of gaussian
 
         all_σ = [rand(0.2:0.1:0.6) for _=1:nbGaussian]                                  # σ parameters for each gaussian
-        all_μ = (randperm(100)[1:nbGaussian]./10)                                       # µ parameters for each gaussian
+        all_μ = Float64.(randperm(O)[1:nbGaussian]./10)                                             # µ parameters for each gaussian
 
         matrix[i, :] = normalize([gaussianSum(x, all_σ, all_μ) for x in x_values])      # Calculate y values for Gaussian with μ=0, σ=1
     end
@@ -1249,7 +1340,7 @@ function writeSolution_Gaussian(path::String, sol::Solution, id::Int64 = 0)
     nbSession::Int64 = length(sol.sessions)
     
 
-    filename = "instanceGaussian_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
+    filename = "instanceContained_$(id)_O$(O)_R$(nbRoutes)_C$(Lmax)_opt_$(nbSession).txt"
         
     # Create file
     println("instance generated : "*filename)
@@ -1283,7 +1374,7 @@ function writeSolution_Gaussian(path::String, sol::Solution, id::Int64 = 0)
     close(fd)
 end
 
-function writeInstanceBatterie_Gaussian(
+function writeInstanceBatterie_Contained(
         path                ::String,
         nbInstance          ::Int64,
         nbSession           ::Int64,
@@ -1299,13 +1390,14 @@ function writeInstanceBatterie_Gaussian(
 
     for i=1:nbInstance
         sol = generateSolution_Gaussian(nbSession, O, Lmax, nbRoute, minBatches, maxBatches, minVolume, nbPlots, nbGaussian)
+        if isSolutionValid(nbRoute*nbSession, sol, true)
+            println("\x1b[32m <VALID: instance $i valid> \x1b[0m")
+        else
+            println("\x1b[31m <ERROR: instance $i invalid> \x1b[0m")
+        end
         writeSolution_Gaussian(path, sol, i)
     end
 end
-
-# TODO if needed
-# function parseSolution_Gaussian()
-# end
 
 function parseMyInstance(path::String)
     fd  = open(path, "r")

@@ -457,6 +457,16 @@ function bracket_close(height::Int64)
     (height == 5) && (return "  ####  ") 
 end
 
+function equal(height::Int64)
+    (height < 1 || 5 < height) && (return "")
+
+    (height == 1) && (return "        ") 
+    (height == 2) && (return " ###### ") 
+    (height == 3) && (return "        ") 
+    (height == 4) && (return " ###### ") 
+    (height == 5) && (return "        ") 
+end
+
 function letter(c::Char, height::Int64)
     (c == 'a') && (return A(height))
     (c == 'b') && (return B(height))
@@ -506,8 +516,9 @@ function letter(c::Char, height::Int64)
     (c == '/') && (return slash(height))
     (c == '[') && (return bracket_open(height))
     (c == ']') && (return bracket_close(height))
+    (c == '=') && (return equal(height))
 
-    return "<Error>"
+    return "<Error> "
 end
 
 function print_comment(str::String; path::String = "./miscelaneous/output.txt", max_char::Int64 = 11)
@@ -532,4 +543,4 @@ function print_comment(str::String; path::String = "./miscelaneous/output.txt", 
     close(fd)
 end
 
-print_comment("constructor")
+print_comment("min session")

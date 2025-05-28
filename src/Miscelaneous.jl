@@ -1,5 +1,6 @@
 begin
     include("Instance.jl")
+    include("Bound.jl")
 end
 
 using Base.Filesystem
@@ -415,38 +416,306 @@ function batterie_SA2_SA3(;
     close(fd)
 end
 
-function batterie_loadSmoothing(;
+function batterie_loadSmoothing_EM_SA(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R30_C40_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C150_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C80_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C100_opt_1.txt" for i=1:10]),
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
 
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R30_C40_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R20_C150_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C80_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R20_C100_opt_1.txt" for i=1:10]),
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C205_opt_1.txt" for i=1:10]),
 
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O100_R30_C40_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O100_R20_C150_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O100_R20_C80_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O100_R20_C100_opt_1.txt" for i=1:10]),
-
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
-            (("Indus.", 20, 200), ["myTrafic_$(i)_O20_R40.txt" for i=1:10]),
-            (("Indus.", 20, 200), ["myTrafic_$(i)_O40_R40.txt" for i=1:10]),
-            (("Indus.", 20, 200), ["myTrafic_$(i)_O100_R40.txt" for i=1:10]),
-            (("Indus.", 20, 200), ["myTrafic_$(i)_O200_R40.txt" for i=1:10]),
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R80_C240_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R80_C405_opt_1.txt" for i=1:10]),
             ]   ,
-        result_path1         ::String            = "../data/results1.txt",
-        result_path2         ::String            = "../data/results2.txt",
-        result_path3         ::String            = "../data/results3.txt",
+        result_path1        ::String                    = "../data/results1.txt",
+        result_path2        ::String                    = "../data/results2.txt",
+        obj                 ::Type{<:FitnessSession}    = OverloadVolume   ,
+        run                 ::Int64                     = 10,
+    )
+# ==========< Head >==========
+    fd1 = open(result_path1, "a")
+    fd2 = open(result_path2, "a")
+
+    write(fd1,"\n\n")
+    write(fd2,"\n\n")
+
+    obj1 = LoadSTD
+    obj2 = MostLoadedOut
+
+# ==========< Init group >==========
+    for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
+
+        GRP_lb1 :: Float64 = 0.
+        GRP_lb2 :: Float64 = 0.
+
+        # EMPTY-MOVE
+        GRP_EM_opti1    ::Int64   = 0
+        GRP_EM_opti2    ::Int64   = 0
+        GRP_EM_cpu      ::Float64 = 0.
+        GRP_EM_obj1     ::Float64 = 0.
+        GRP_EM_obj2     ::Float64 = 0.
+        GRP_EM_improv1  ::Float64 = 0.
+        GRP_EM_improv2  ::Float64 = 0.
+        GRP_EM_gap1     ::Float64 = 0.
+        GRP_EM_gap2     ::Float64 = 0.
+        GRP_EM_gap3     ::Float64 = 0.
+        GRP_EM_gap4     ::Float64 = 0.
+        GRP_EM_merge1   ::Float64 = 0.
+        GRP_EM_merge2   ::Float64 = 0.
+        GRP_EM_var1     ::Float64 = 0.
+        GRP_EM_var2     ::Float64 = 0.
+        GRP_EM_all1     ::Vector{Float64} = zeros(Float64, run)
+        GRP_EM_all2     ::Vector{Float64} = zeros(Float64, run)
+
+        # SIMULATED ANNEALING
+        GRP_SA_opti1    ::Int64   = 0
+        GRP_SA_opti2    ::Int64   = 0
+        GRP_SA_cpu      ::Float64 = 0.
+        GRP_SA_obj1     ::Float64 = 0.
+        GRP_SA_obj2     ::Float64 = 0.
+        GRP_SA_improv1  ::Float64 = 0.
+        GRP_SA_improv2  ::Float64 = 0.
+        GRP_SA_gap1     ::Float64 = 0.
+        GRP_SA_gap2     ::Float64 = 0.
+        GRP_SA_gap3     ::Float64 = 0.
+        GRP_SA_gap4     ::Float64 = 0.
+        GRP_SA_merge1   ::Float64 = 0.
+        GRP_SA_merge2   ::Float64 = 0.
+        GRP_SA_var1     ::Float64 = 0.
+        GRP_SA_var2     ::Float64 = 0.
+        GRP_SA_all1     ::Vector{Float64} = zeros(Float64, run)
+        GRP_SA_all2     ::Vector{Float64} = zeros(Float64, run)
+# ==========< Init runs >==========
+        println("\nGroup $k: $name")
+        for (i, path) in enumerate(group_path)
+            print("($i/$(length(group_path))) > ")
+            instance::Instance, _ = parseAnyInstance(path)
+
+            O = instance.nbOut
+            R = instance.nbRoute
+
+            meanlb1      ::Float64 = 0.
+            meanlb2      ::Float64 = 0.
+
+            EM_opti1    ::Int64   = 0
+            EM_opti2    ::Int64   = 0
+            EM_cpu      ::Float64 = 0.
+            EM_obj1     ::Float64 = 0.
+            EM_obj2     ::Float64 = 0.
+            EM_improv1  ::Float64 = 0.
+            EM_improv2  ::Float64 = 0.
+            EM_gap1     ::Float64 = 0.
+            EM_gap2     ::Float64 = 0.
+            EM_gap3     ::Float64 = 0.
+            EM_gap4     ::Float64 = 0.
+            EM_merge1   ::Float64 = 0.
+            EM_merge2   ::Float64 = 0.
+            EM_var1     ::Float64 = 0.
+            EM_var2     ::Float64 = 0.
+            EM_all1     ::Vector{Float64} = zeros(Float64, run)
+            EM_all2     ::Vector{Float64} = zeros(Float64, run)
+
+            SA_opti1    ::Int64   = 0
+            SA_opti2    ::Int64   = 0
+            SA_cpu      ::Float64 = 0.
+            SA_obj1     ::Float64 = 0.
+            SA_obj2     ::Float64 = 0.
+            SA_improv1  ::Float64 = 0.
+            SA_improv2  ::Float64 = 0.
+            SA_gap1     ::Float64 = 0.
+            SA_gap2     ::Float64 = 0.
+            SA_gap3     ::Float64 = 0.
+            SA_gap4     ::Float64 = 0.
+            SA_merge1   ::Float64 = 0.
+            SA_merge2   ::Float64 = 0.
+            SA_var1     ::Float64 = 0.
+            SA_var2     ::Float64 = 0.
+            SA_all1     ::Vector{Float64} = zeros(Float64, run)
+            SA_all2     ::Vector{Float64} = zeros(Float64, run)
+
+# ==========< Runs >==========
+            
+            for k=1:run
+                print("<$k")
+                glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+                start_obj1 = fitness(glob_s, LoadSTD)
+                start_obj2 = fitness(glob_s, MostLoadedOut)
+
+                lb_obj1 = lb_std(glob_s)
+                lb_obj2 = ceil(mean(glob_s.load))
+
+                start = time()
+                em_s1, em_s2, _ = EM_VE(deepcopy(glob_s))
+                em_cpu = time() - start
+
+                start = time()
+                sa_s1, sa_s2, _, _, _ = SA_V4(deepcopy(glob_s), display_plot=false, display_state=false, α=0.96, τ=.5)
+                sa_cpu = time() - start
+
+# ==========< Res runs >==========
+
+                meanlb1     += lb_std(glob_s)
+                meanlb2     += ceil(mean(glob_s.load))
+
+                EM_opti1    += (fitness(em_s1, obj1) == lb_obj1) ? (1) : (0) 
+                EM_opti2    += (fitness(em_s2, obj2) == lb_obj2) ? (1) : (0) 
+                EM_cpu      += em_cpu
+                EM_obj1     += fitness(em_s1, obj1)
+                EM_obj2     += fitness(em_s2, obj2)
+                EM_improv1  += (abs(start_obj1) == 0) ? (0.) : abs(start_obj1 - fitness(em_s1, obj1)) / abs(start_obj1)
+                EM_improv2  += (abs(start_obj2) == 0) ? (0.) : abs(start_obj2 - fitness(em_s2, obj2)) / abs(start_obj2)
+                EM_gap1     += (abs(fitness(em_s1, obj1)) == 0) ? (0.) : abs(fitness(em_s1, obj1) - lb_obj1) / abs(fitness(em_s1, obj1))
+                EM_gap2     += (abs(fitness(em_s2, obj2)) == 0) ? (0.) : abs(fitness(em_s2, obj2) - lb_obj2) / abs(fitness(em_s2, obj2))
+                EM_gap3     += (abs(start_obj1 - lb_obj1) == 0) ? (0.) : abs(fitness(em_s1, obj1) - lb_obj1) / abs(start_obj1 - lb_obj1)
+                EM_gap4     += (abs(start_obj2 - lb_obj2) == 0) ? (0.) : abs(fitness(em_s2, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2)
+                EM_all1[k]  = fitness(em_s1, obj1)
+                EM_all2[k]  = fitness(em_s2, obj2)
+
+                SA_opti1    += (fitness(sa_s1, obj1) == lb_obj1) ? (1) : (0) 
+                SA_opti2    += (fitness(sa_s2, obj2) == lb_obj2) ? (1) : (0) 
+                SA_cpu      += sa_cpu
+                SA_obj1     += fitness(sa_s1, obj1)
+                SA_obj2     += fitness(sa_s2, obj2)
+                SA_improv1  += (abs(start_obj1) == 0) ? (0.) : abs(start_obj1 - fitness(sa_s1, obj1)) / abs(start_obj1)
+                SA_improv2  += (abs(start_obj2) == 0) ? (0.) : abs(start_obj2 - fitness(sa_s2, obj2)) / abs(start_obj2)
+                SA_gap1     += (abs(fitness(sa_s1, obj1)) == 0) ? (0.) : abs(fitness(sa_s1, obj1) - lb_obj1) / abs(fitness(sa_s1, obj1))
+                SA_gap2     += (abs(fitness(sa_s2, obj2)) == 0) ? (0.) : abs(fitness(sa_s2, obj2) - lb_obj2) / abs(fitness(sa_s2, obj2))
+                SA_gap3     += (abs(start_obj1 - lb_obj1) == 0) ? (0.) : abs(fitness(sa_s1, obj1) - lb_obj1) / abs(start_obj1 - lb_obj1)
+                SA_gap4     += (abs(start_obj2 - lb_obj2) == 0) ? (0.) : abs(fitness(sa_s2, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2)
+                SA_all1[k]  = fitness(sa_s1, obj1)
+                SA_all2[k]  = fitness(sa_s2, obj2)
+
+                print(">")
+            end
+
+# ==========< Res group >==========
+
+            GRP_lb1 += meanlb1 / run
+            GRP_lb2 += meanlb2 / run
+
+
+            GRP_EM_opti1    += EM_opti1
+            GRP_EM_opti2    += EM_opti2
+            GRP_EM_cpu      += EM_cpu / run
+            GRP_EM_obj1     += EM_obj1 / run
+            GRP_EM_obj2     += EM_obj2 / run
+            GRP_EM_improv1  += EM_improv1 / run * 100
+            GRP_EM_improv2  += EM_improv2 / run * 100
+            GRP_EM_gap1     += EM_gap1 / run * 100
+            GRP_EM_gap2     += EM_gap2 / run * 100
+            GRP_EM_gap3     += EM_gap3 / run * 100
+            GRP_EM_gap4     += EM_gap4 / run * 100
+            GRP_EM_merge1   += (sum(EM_obj1) == 0) ? (0.) : minimum(EM_all1) / (EM_obj1 / run)
+            GRP_EM_merge2   += (sum(EM_obj2) == 0) ? (0.) : minimum(EM_all2) / (EM_obj2 / run)
+            GRP_EM_var1     += sum([(e - mean(EM_all1))^2 for e in EM_all1]) / (run-1)
+            GRP_EM_var2     += sum([(e - mean(EM_all2))^2 for e in EM_all2]) / (run-1)
+
+            GRP_SA_opti1    += SA_opti1
+            GRP_SA_opti2    += SA_opti2
+            GRP_SA_cpu      += SA_cpu / run
+            GRP_SA_obj1     += SA_obj1 / run
+            GRP_SA_obj2     += SA_obj2 / run
+            GRP_SA_improv1  += SA_improv1 / run * 100
+            GRP_SA_improv2  += SA_improv2 / run * 100
+            GRP_SA_gap1     += SA_gap1 / run * 100
+            GRP_SA_gap2     += SA_gap2 / run * 100
+            GRP_SA_gap3     += SA_gap3 / run * 100
+            GRP_SA_gap4     += SA_gap4 / run * 100
+            GRP_SA_merge1   += (sum(SA_obj1) == 0) ? (0.) : (minimum(SA_all1) / (SA_obj1 / run))
+            GRP_SA_merge2   += (sum(SA_obj2) == 0) ? (0.) : minimum(SA_all2) / (SA_obj2 / run)
+            GRP_SA_var1     += sum([(e - mean(SA_all1))^2 for e in SA_all1]) / (run-1)
+            GRP_SA_var2     += sum([(e - mean(SA_all2))^2 for e in SA_all2]) / (run-1)
+            
+            println()
+        end
+
+# ==========< Average group >==========
+
+        GRP_lb1 /= length(group_path)
+        GRP_lb2 /= length(group_path)
+
+        GRP_EM_cpu      /= length(group_path)
+        GRP_EM_obj1     /= length(group_path)
+        GRP_EM_obj2     /= length(group_path)
+        GRP_EM_improv1  /= length(group_path)
+        GRP_EM_improv2  /= length(group_path)
+        GRP_EM_gap1     /= length(group_path)
+        GRP_EM_gap2     /= length(group_path)
+        GRP_EM_gap3     /= length(group_path)
+        GRP_EM_gap4     /= length(group_path)
+        GRP_EM_merge1   /= length(group_path)
+        GRP_EM_merge2   /= length(group_path)
+        GRP_EM_var1     /= length(group_path)
+        GRP_EM_var2     /= length(group_path)
+
+        GRP_SA_cpu      /= length(group_path)
+        GRP_SA_obj1     /= length(group_path)
+        GRP_SA_obj2     /= length(group_path)
+        GRP_SA_improv1  /= length(group_path)
+        GRP_SA_improv2  /= length(group_path)
+        GRP_SA_gap1     /= length(group_path)
+        GRP_SA_gap2     /= length(group_path)
+        GRP_SA_gap3     /= length(group_path)
+        GRP_SA_gap4     /= length(group_path)
+        GRP_SA_merge1   /= length(group_path)
+        GRP_SA_merge2   /= length(group_path)
+        GRP_SA_var1     /= length(group_path)
+        GRP_SA_var2     /= length(group_path)
+
+# ==========< Write line >==========
+
+        # Instances
+        write(fd1, "$(name) & $(O) & $(R) & $(round(GRP_lb1, digits=3)) & $(round(GRP_lb2, digits=3))")
+        # Integer
+        write(fd1, " & $(GRP_EM_opti1) & $(GRP_EM_opti2)")
+        # Float
+        write(fd1, " & $(join(round.([GRP_EM_cpu, GRP_EM_obj1, GRP_EM_obj2, GRP_EM_improv1, GRP_EM_improv2, GRP_EM_gap1, GRP_EM_gap2, GRP_EM_gap3, GRP_EM_gap4, GRP_EM_merge1, GRP_EM_merge2, GRP_EM_var1, GRP_EM_var2], digits=3), " & ")) \\\\\n")
+        flush(fd1)
+
+        # Instances
+        write(fd2, "$(name) & $(O) & $(R) & $(round(GRP_lb1, digits=3)) & $(round(GRP_lb2, digits=3))")
+        # Integer
+        write(fd2, " & $(GRP_SA_opti1) & $(GRP_SA_opti2)")
+        # Float
+        write(fd2, " & $(join(round.([GRP_SA_cpu, GRP_SA_obj1, GRP_SA_obj2, GRP_SA_improv1, GRP_SA_improv2, GRP_SA_gap1, GRP_SA_gap2, GRP_SA_gap3, GRP_SA_gap4, GRP_SA_merge1, GRP_SA_merge2, GRP_SA_var1, GRP_SA_var2], digits=3), " & ")) \\\\\n")
+        flush(fd2)
+    end
+# ==========< END >==========
+
+    close(fd1)
+    close(fd2)
+end
+
+function batterie_loadSmoothing_EM_SA_LP(;
+        all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C205_opt_1.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R80_C240_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R80_C405_opt_1.txt" for i=1:10]),
+            ]   ,
+        result_path1         ::String            = "../data/results3.txt",
+        result_path2         ::String            = "../data/results4.txt",
+        result_path3         ::String            = "../data/results5.txt",
         obj                 ::Type{<:FitnessSession} = OverloadVolume   ,
     )
-    # ==========< Head >==========
+# ==========< Head >==========
     fd1 = open(result_path1, "a")
     fd2 = open(result_path2, "a")
     fd3 = open(result_path3, "a")
@@ -458,10 +727,13 @@ function batterie_loadSmoothing(;
     obj1 = LoadSTD
     obj2 = MostLoadedOut
 
-    # ==========< Init group >==========
+    env::Gurobi.Env = Gurobi.Env()
+
+# ==========< Init group >==========
     for (k::Int64, ((name::String, R::Int64, O::Int64), group_path::Vector{String})) in enumerate(all_group)
 
-        meanlb  ::Float64 = 0.
+        meanlb1  ::Float64 = 0.
+        meanlb2  ::Float64 = 0.
 
         # EMPTY-MOVE
         EM_opti1    ::Int64   = 0
@@ -473,6 +745,10 @@ function batterie_loadSmoothing(;
         EM_improv2  ::Float64 = 0.
         EM_gap1     ::Float64 = 0.
         EM_gap2     ::Float64 = 0.
+        EM_gap3     ::Float64 = 0.
+        EM_gap4     ::Float64 = 0.
+        EM_gap5     ::Float64 = 0.
+        EM_gap6     ::Float64 = 0.
 
         SA_opti1    ::Int64   = 0
         SA_opti2    ::Int64   = 0
@@ -483,6 +759,10 @@ function batterie_loadSmoothing(;
         SA_improv2  ::Float64 = 0.
         SA_gap1     ::Float64 = 0.
         SA_gap2     ::Float64 = 0.
+        SA_gap3     ::Float64 = 0.
+        SA_gap4     ::Float64 = 0.
+        SA_gap5     ::Float64 = 0.
+        SA_gap6     ::Float64 = 0.
 
         LP_opti1    ::Int64   = 0
         LP_opti2    ::Int64   = 0
@@ -495,6 +775,7 @@ function batterie_loadSmoothing(;
         LP_gap2     ::Float64 = 0.
         LP_gap3     ::Float64 = 0.
 
+# ==========< Init Run >==========
         println("\nGroup $k: $name")
         for (i, path) in enumerate(group_path)
             print("($i/$(length(group_path))) > ")
@@ -508,9 +789,9 @@ function batterie_loadSmoothing(;
             start_obj1 = fitness(glob_s, LoadSTD)
             start_obj2 = fitness(glob_s, MostLoadedOut)
 
-            lb_obj1 = 0.
-            lb_obj2 = mean(glob_s.load)
-    # ==========< solve EMPTY-MOVE >==========
+            lb_obj1 = lb_std(glob_s)
+            lb_obj2 = ceil(mean(glob_s.load))
+# ==========< Runs >==========
 
             start = time()
             em_s1, em_s2, _ = EM_VE(deepcopy(glob_s))
@@ -521,46 +802,60 @@ function batterie_loadSmoothing(;
             sa_cpu = time() - start
 
             start = time()
-            lp_md, lp_s = MILP_load_ballance_warmstart(deepcopy(glob_s), 600)
+            lp_md, lp_s = MILP_load_ballance_warmstart(deepcopy(glob_s), 600, env)
             lp_cpu = time() - start
 
+# ==========< res run >==========
+            
+            meanlb1  += lb_obj1
+            meanlb2  += lb_obj2
+            
             EM_opti1    += (fitness(em_s1, obj1) == lb_obj1) ? (1) : (0) 
             EM_opti2    += (fitness(em_s2, obj2) == lb_obj2) ? (1) : (0) 
             EM_cpu      += em_cpu
             EM_obj1     += fitness(em_s1, obj1)
             EM_obj2     += fitness(em_s2, obj2)
-            EM_improv1  += start_obj1 - fitness(em_s1, obj1)
-            EM_improv2  += start_obj2 - fitness(em_s2, obj2)
-            EM_gap1     += ((fitness(em_s1, obj1) == 0) ? (0) : (abs(lb_obj1 - fitness(em_s1, obj1)) / abs(fitness(em_s1, obj1))))
-            EM_gap2     += abs(lb_obj2 - fitness(em_s2, obj2)) / abs(fitness(em_s2, obj2))
+            EM_improv1  += (abs(start_obj1) == 0) ? (0.) : abs(start_obj1 - fitness(em_s1, obj1)) / abs(start_obj1)
+            EM_improv2  += (abs(start_obj2) == 0) ? (0.) : abs(start_obj2 - fitness(em_s2, obj2)) / abs(start_obj2)
+            EM_gap1     += (abs(fitness(em_s1, obj1)) == 0) ? (0.) : abs(fitness(em_s1, obj1) - lb_obj1) / abs(fitness(em_s1, obj1))
+            EM_gap2     += (abs(fitness(em_s2, obj2)) == 0) ? (0.) : abs(fitness(em_s2, obj2) - lb_obj2) / abs(fitness(em_s2, obj2))
+            EM_gap3     += (abs(start_obj1 - lb_obj1) == 0) ? (0.) : abs(fitness(em_s1, obj1) - lb_obj1) / abs(start_obj1 - lb_obj1)
+            EM_gap4     += (abs(start_obj2 - lb_obj2) == 0) ? (0.) : abs(fitness(em_s2, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2)
+            EM_gap5     += (lp_s == nothing || fitness(lp_s, obj1) == 0) ? (0.) : (fitness(em_s1, obj1) - fitness(lp_s, obj1)) / fitness(lp_s, obj1)
+            EM_gap6     += (lp_s == nothing || fitness(lp_s, obj2) == 0) ? (0.) : (fitness(em_s2, obj2) - fitness(lp_s, obj2)) / fitness(lp_s, obj2)
 
             SA_opti1    += (fitness(sa_s1, obj1) == lb_obj1) ? (1) : (0) 
             SA_opti2    += (fitness(sa_s2, obj2) == lb_obj2) ? (1) : (0) 
             SA_cpu      += sa_cpu
             SA_obj1     += fitness(sa_s1, obj1)
             SA_obj2     += fitness(sa_s2, obj2)
-            SA_improv1  += start_obj1 - fitness(sa_s1, obj1)
-            SA_improv2  += start_obj2 - fitness(sa_s2, obj2)
-            SA_gap1     += ((fitness(sa_s1, obj1) == 0) ? (0) : (abs(lb_obj1 - fitness(sa_s1, obj1)) / abs(fitness(sa_s1, obj1))))
-            SA_gap2     += abs(lb_obj2 - fitness(sa_s2, obj2)) / abs(fitness(sa_s2, obj2))
+            SA_improv1  += (abs(start_obj1) == 0) ? (0.) : abs(start_obj1 - fitness(sa_s1, obj1)) / abs(start_obj1)
+            SA_improv2  += (abs(start_obj2) == 0) ? (0.) : abs(start_obj2 - fitness(sa_s2, obj2)) / abs(start_obj2)
+            SA_gap1     += (abs(fitness(sa_s1, obj1)) == 0) ? (0.) : abs(fitness(sa_s1, obj1) - lb_obj1) / abs(fitness(sa_s1, obj1))
+            SA_gap2     += (abs(fitness(sa_s2, obj2)) == 0) ? (0.) : abs(fitness(sa_s2, obj2) - lb_obj2) / abs(fitness(sa_s2, obj2))
+            SA_gap3     += (abs(start_obj1 - lb_obj1) == 0) ? (0.) : abs(fitness(sa_s1, obj1) - lb_obj1) / abs(start_obj1 - lb_obj1)
+            SA_gap4     += (abs(start_obj2 - lb_obj2) == 0) ? (0.) : abs(fitness(sa_s2, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2)
+            SA_gap5     += (lp_s == nothing || fitness(lp_s, obj1) == 0) ? (0.) : (fitness(sa_s1, obj1) - fitness(lp_s, obj1)) / fitness(lp_s, obj1)
+            SA_gap6     += (lp_s == nothing || fitness(lp_s, obj2) == 0) ? (0.) : (fitness(sa_s2, obj2) - fitness(lp_s, obj2)) / fitness(lp_s, obj2)
 
-            if termination_status(lp_md) == OPTIMAL
-                LP_opti1    += (lp_s == nothing) ? (0) : ((fitness(lp_s, obj1) == lb_obj1) ? (1) : (0)) 
-                LP_opti2    += (lp_s == nothing) ? (0) : (1) 
-                LP_cpu      += (lp_s == nothing) ? (0) : (lp_cpu)
-                LP_obj1     += (lp_s == nothing) ? (0) : (fitness(lp_s, obj1))
-                LP_obj2     += (lp_s == nothing) ? (0) : (fitness(lp_s, obj2))
-                LP_improv1  += (lp_s == nothing) ? (0) : (start_obj1 - fitness(lp_s, obj1))
-                LP_improv2  += (lp_s == nothing) ? (0) : (start_obj2 - fitness(lp_s, obj2))
-            end
-            LP_gap1     += (lp_s == nothing) ? (0) : ((fitness(lp_s, obj1) == 0) ? (0) : (abs(lb_obj1 - fitness(lp_s, obj1)) / abs(fitness(lp_s, obj1))))
-            LP_gap2     += (lp_s == nothing) ? (0) : (abs(lb_obj2 - fitness(lp_s, obj2)) / abs(fitness(lp_s, obj2)))
+            LP_opti1    += (lp_s == nothing) ? (0) : ((fitness(lp_s, obj1) == lb_obj1) ? (1) : (0)) 
+            LP_opti2    += (lp_s == nothing) ? (0) : ((termination_status(lp_md) == OPTIMAL) ? (1) : (0)) 
+            LP_cpu      += ((lp_s == nothing) && (termination_status(lp_md) == OPTIMAL)) ? (0.) : (lp_cpu)
+            LP_obj1     += (lp_s == nothing) ? (0.) : (fitness(lp_s, obj1))
+            LP_obj2     += (lp_s == nothing) ? (0.) : (fitness(lp_s, obj2))
+            LP_improv1  += (lp_s == nothing || abs(start_obj1) == 0) ? (0.) : (abs(start_obj1 - fitness(lp_s, obj1)) / abs(start_obj1))
+            LP_improv2  += (lp_s == nothing || abs(start_obj2) == 0) ? (0.) : (abs(start_obj2 - fitness(lp_s, obj2)) / abs(start_obj2))
+            LP_gap1     += (lp_s == nothing || abs(start_obj2 - lb_obj1) == 0) ? (0.) : (abs(fitness(sa_s1, obj1) - lb_obj1) / abs(start_obj2 - lb_obj1))
+            LP_gap2     += (lp_s == nothing || abs(start_obj2 - lb_obj1) == 0) ? (0.) : (abs(fitness(sa_s2, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2))
             LP_gap3     += MOI.get(lp_md, Gurobi.ModelAttribute("MIPGap"))
 
             println()
         end
 
-    # ==========< Compute res >==========
+# ==========< res group >==========
+
+        meanlb1      /= length(group_path)
+        meanlb2      /= length(group_path)
 
         EM_cpu      /= length(group_path)
         EM_obj1     /= length(group_path)
@@ -569,6 +864,10 @@ function batterie_loadSmoothing(;
         EM_improv2  /= length(group_path)
         EM_gap1     /= length(group_path)
         EM_gap2     /= length(group_path)
+        EM_gap3     /= length(group_path)
+        EM_gap4     /= length(group_path)
+        EM_gap5     /= length(group_path)
+        EM_gap6     /= length(group_path)
 
         SA_cpu      /= length(group_path)
         SA_obj1     /= length(group_path)
@@ -577,28 +876,32 @@ function batterie_loadSmoothing(;
         SA_improv2  /= length(group_path)
         SA_gap1     /= length(group_path)
         SA_gap2     /= length(group_path)
+        SA_gap3     /= length(group_path)
+        SA_gap4     /= length(group_path)
+        SA_gap5     /= length(group_path)
+        SA_gap6     /= length(group_path)
 
         LP_cpu      /= max(LP_opti2, 1)
-        LP_obj1     /= max(LP_opti2, 1)
-        LP_obj2     /= max(LP_opti2, 1)
-        LP_improv1  /= max(LP_opti2, 1)
-        LP_improv2  /= max(LP_opti2, 1)
-        LP_gap1     /= max(LP_opti2, 1)
-        LP_gap2     /= max(LP_opti2, 1)
+        LP_obj1     /= length(group_path)
+        LP_obj2     /= length(group_path)
+        LP_improv1  /= length(group_path)
+        LP_improv2  /= length(group_path)
+        LP_gap1     /= length(group_path)
+        LP_gap2     /= length(group_path)
         LP_gap3     /= length(group_path)
 
-    # ==========< Write line >==========
+# ==========< Write line >==========
 
-    write(fd1, "$(name) & $(O) & $(R) & $(EM_opti1) & $(EM_opti2) & $(round(EM_cpu, digits=3)) & $(round(EM_obj1, digits=3)) & $(round(EM_obj2, digits=3)) & $(round(EM_improv1, digits=3)) & $(round(EM_improv2, digits=3)) & $(round(EM_gap1, digits=3)) & $(round(EM_gap2, digits=3)) \\\\\n") # Head
+    write(fd1, "$(name) & $(O) & $(R) & $(round(meanlb1, digits=3)) & $(round(meanlb2, digits=3)) & $(EM_opti1) & $(EM_opti2) & $(round(EM_cpu, digits=3)) & $(round(EM_obj1, digits=3)) & $(round(EM_obj2, digits=3)) & $(round(EM_improv1, digits=3)) & $(round(EM_improv2, digits=3)) & $(round(EM_gap1, digits=3)) & $(round(EM_gap2, digits=3)) & $(round(EM_gap3, digits=3)) & $(round(EM_gap4, digits=3)) & $(round(EM_gap5, digits=3)) & $(round(EM_gap6, digits=3)) \\\\\n") # Head
     flush(fd1)
 
-    write(fd2, "$(name) & $(O) & $(R) & $(SA_opti1) & $(SA_opti2) & $(round(SA_cpu, digits=3)) & $(round(SA_obj1, digits=3)) & $(round(SA_obj2, digits=3)) & $(round(SA_improv1, digits=3)) & $(round(SA_improv2, digits=3)) & $(round(SA_gap1, digits=3)) & $(round(SA_gap2, digits=3)) \\\\\n") # Head
+    write(fd2, "$(name) & $(O) & $(R) & $(round(meanlb1, digits=3)) & $(round(meanlb2, digits=3)) & $(SA_opti1) & $(SA_opti2) & $(round(SA_cpu, digits=3)) & $(round(SA_obj1, digits=3)) & $(round(SA_obj2, digits=3)) & $(round(SA_improv1, digits=3)) & $(round(SA_improv2, digits=3)) & $(round(SA_gap1, digits=3)) & $(round(SA_gap2, digits=3)) & $(round(SA_gap3, digits=3)) & $(round(SA_gap4, digits=3)) & $(round(SA_gap5, digits=3)) & $(round(SA_gap6, digits=3)) \\\\\n") # Head
     flush(fd2)
 
-    write(fd3, "$(name) & $(O) & $(R) & $(LP_opti1) & $(LP_opti2) & $(round(LP_cpu, digits=3)) & $(round(LP_obj1, digits=3)) & $(round(LP_obj2, digits=3)) & $(round(LP_improv1, digits=3)) & $(round(LP_improv2, digits=3)) & $(round(LP_gap1, digits=3)) & $(round(LP_gap2, digits=3)) & $(round(LP_gap3, digits=3)) \\\\\n") # Head
+    write(fd3, "$(name) & $(O) & $(R) & $(round(meanlb1, digits=3)) & $(round(meanlb2, digits=3)) & $(LP_opti1) & $(LP_opti2) & $(round(LP_cpu, digits=3)) & $(round(LP_obj1, digits=3)) & $(round(LP_obj2, digits=3)) & $(round(LP_improv1, digits=3)) & $(round(LP_improv2, digits=3)) & $(round(LP_gap1, digits=3)) & $(round(LP_gap2, digits=3)) & $(round(LP_gap3, digits=3)) \\\\\n") # Head
     flush(fd3)
 
-    # ==========< Tail >==========
+# ==========< End >==========
 
     end
 

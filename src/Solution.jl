@@ -1751,3 +1751,28 @@ end
 function isSolutionValid(instance::Instance, sol::Solution, display::Bool = true)
     return isSolutionValid(instance, sol.route, display)
 end
+
+
+function isSolutionValid(R::Int64, sol::Vector{Session}, display::Bool = true)
+    usedRoute_vect::Vector{Int64} = zeros(Int64, sum([length(s.route) for s in sol]))
+    valid::Bool = true
+
+    for (sid::Int64, s::Session) in enumerate(sol)
+        isSessionValid(s) || (valid = false; (display && (println(" -> Session $sid: invalid"))))
+        for r in s.route
+            isRouteValid(r) || (valid = false; (display && (println(" -> Route $(r.id): invalid"))))
+            # (instance.route[r.id].mail == r.mail) || (valid = false)
+            usedRoute_vect[r.id] += 1
+        end
+    end
+
+    for (k, v) in enumerate(usedRoute_vect)
+        (v == 1) || (valid = false; (display && println(" -> Route $k: appears $v times.")))
+    end
+
+    return valid
+end
+
+function isSolutionValid(R::Int64, sol::Solution, display::Bool = true)
+    return isSolutionValid(R, sol.sessions, display)
+end

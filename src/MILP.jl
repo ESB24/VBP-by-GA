@@ -359,7 +359,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
 end
 
 
-function MILP_load_ballance_warmstart(ses::Session, tl::Int64 = 600)::Tuple{Model, Union{Nothing, Session}}
+function MILP_load_ballance_warmstart(ses::Session, tl::Int64 = 600, env::Gurobi.Env = Gurobi.Env())::Tuple{Model, Union{Nothing, Session}}
 # ===========< Parameters: >===========
     R::Vector{Int64} = collect(1:length(ses.route))
     O::Vector{Int64} = collect(1:length(ses.route[1].assignment))
@@ -379,9 +379,9 @@ function MILP_load_ballance_warmstart(ses::Session, tl::Int64 = 600)::Tuple{Mode
 
 # ===========< Model: >===========
 
-    model = Model(Gurobi.Optimizer)
-    # set_silent(model)
-    # set_optimizer_attribute(model, "OutputFlag", 0)
+    model = Model(() -> Gurobi.Optimizer(env))
+    set_silent(model)
+    set_optimizer_attribute(model, "OutputFlag", 0)
     set_optimizer_attribute(model, "TimeLimit", tl)
 
 # ===========< Variables: >===========

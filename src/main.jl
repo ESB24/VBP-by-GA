@@ -437,30 +437,60 @@ begin
     end
 end
 
-# ================================================================================= #
-#                           #######  ##    #   ######  #######                      #
-#                              #     # #   #  #           #                         #
-#                              #     #  #  #   #####      #                         #
-#                              #     #   # #        #     #                         #
-#                           #######  #    ##  ######      #                         #
-# ================================================================================= #
+## ============================================================================================================== ##
+##            ########  ##    ##   #######  ########   ######   ##    ##   ######   ########   #######            ##
+##               ##     ###   ##  ##           ##     ##    ##  ###   ##  ##    ##  ##        ##                  ##
+##               ##     ## ## ##   ######      ##     ########  ## ## ##  ##        #####      ######             ##
+##               ##     ##   ###        ##     ##     ##    ##  ##   ###  ##    ##  ##              ##            ##
+##            ########  ##    ##  #######      ##     ##    ##  ##    ##   ######   ########  #######             ##
+## ============================================================================================================== ##
 
-# writeInstanceBatterie_Gaussian("TER/data/Gaussian", I, S, R, O, 100, 2, ceil(Int64, 2O/3), 10, 6, 16:20)
-# writeInstanceBatterie_BigBatche("TER/data/BigBatch", I, S, R, O, 60, 2, ceil(Int64, 2O/3), 1:5, 50:55, 1:3)
-# writeInstanceBatterie_Distrib("TER/data/DistribHard", I, S, R, O, 100, 2, ceil(Int64, 2O/3), 15, 40, distrib_1onN)
-# writeInstanceBatterie_Distrib_easy(I, R, O)
-writeInstanceBatterie_Distrib("../data/Tests/DistribHard", I, S, R, O, 50, 2, ceil(Int64, 2O/3), 15, 40, distrib_1onN)
+# Changing the number of: output ("O"), session ("S") or instances ("I") can be done within each section without altering the instance 
+# (except for the standard deviation of the mail to route distribution which is very uncontroled)
+
+# the number of route per session impact: the capacity ("Lmax") and possibly some other parameter depending in the instance type
+# (e.g. the number of generated gaussian for the contained instance)
+
+## ============================================================================================================== ##
+##                 #######        ##    #######  ########   #######             ######    ######                  ##
+##                 ##    ##      ##    ##        ##        ##         ######         ##  ##   ###                 ##
+##                 #######      ##      ######   #####      ######               ####    ## ## ##                 ##
+##                 ##  ##      ##            ##  ##              ##   ######   ##        ###   ##                 ##
+##                 ##   ##    ##       #######   ########  #######              ######    ######                  ##
+## ============================================================================================================== ##
+
+begin
+    O = 200 
+    n = 20
+    nbGaussian = round(Int64, O/2):round(Int64, 3O/4)
+    mat = generateMultipleGaussianSum(O, n, nbGaussian)
+    x = 1:O
+    p = plot()
+    for i = 1:n
+        plot!(x, mat[i, :] .+ (i*1.2), label="")
+    end 
+    display(p)
+end
+
+# USAGE: uncomment 1 instance generator and the corresponding parser:
+# -> generate a new instance under: "../data/Tests"
+# -> parse instance and display: std/mean volume/mail number + plots...
 
 begin
     I           = 1
     S           = 1
     O           = 40
-    R           = 40
-    writeInstanceBatterie_Distrib("../data/Tests", I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
-    # writeInstanceBatterie_Gaussian("../data/Tests", I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, 20:30)
+    R           = 20
+    target      = "../data/Tests"
+    # writeInstanceBatterie_Distrib(target, I, S, R, O, 65, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+    # writeInstanceBatterie_Contained(target, I, S, R, O, 75, 2, ceil(Int64, 2O/3), 4, 9, round(Int64, O/2):round(Int64, 3O/4))
+    # writeInstanceBatterie_Skewed(target, I, S, R, O, 60, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:6)
+    writeInstanceBatterie_Chunk(target, I, S, R, O, 95, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:20)
 
-    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C120_opt_$(S).txt")
-    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceGaussian_1_O$(O)_R$(R)_C150_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C65_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceContained_1_O$(O)_R$(R)_C75_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C60_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C95_opt_$(S).txt")
     R2, O2 = size(mat)
     s = Session(C, O2)
     for i=1:R2
@@ -477,11 +507,11 @@ begin
     println("avg mail volume = $(round(mean(mail_vol), digits=3))")
     println("std mail volume = $(round(std(mail_vol), digits=3))")
     println("min mail volume = $(minimum(mail_vol)), max mail volume = $(maximum(mail_vol))")
-    println("$(sort(mail_nb))")
+    # println("$(sort(mail_nb))")
+    # println("$(sort(mail_vol))")
 
     x_number = minimum(mail_nb):maximum(mail_nb)
     y_number = [count(x->x==i, mail_nb) for i=x_number]
-    println("$(y_number)")
     p_number = plot(xlabel = "mail number", ylabel = "route number", title="mail per route distribution", xlims=(minimum(mail_nb)-.5, maximum(mail_nb)+.5))
     bar!(x_number, y_number, label="")
 
@@ -493,38 +523,282 @@ begin
     display(plot(p_number, p_volume, layout=(2,1), size = (1250, 1600)))
 end
 
-
-for O in [20, 40, 80, 120]
-    for R in [20, 40, 80, 120]
+begin
+    I           = 100
+    R           = 20
+    # target      = "../data/HardIndus/"
+    # target      = "../data/Contained/"
+    # target      = "../data/Skewed/"
+    target      = "../data/Chunk/"
+    for O in [20, 40]
+        for S in [1, 2, 5, 10]
+            # writeInstanceBatterie_Distrib(target, I, S, R, O, 65, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+            # writeInstanceBatterie_Contained(target, I, S, R, O, 75, 2, ceil(Int64, 2O/3), 4, 9, round(Int64, O/2):round(Int64, 3O/4))
+            # writeInstanceBatterie_Skewed(target, I, S, R, O, 60, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:6)
+            writeInstanceBatterie_Chunk(target, I, S, R, O, 95, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:20)
+        end
     end
 end
 
 
-
-instance, opti = parseAnyInstance("instanceGaussian_1_O200_R200_C100_opt_10.txt")
-instance, opti = parseAnyInstance("myTrafic_1_O20_R20.txt")
-
-tmp = filter(e -> !(e.id in [11, 27, 29, 40, 37, 9, 7, 14, 34, 19, 38, 35, 24, 28, 36, 23, 4, 18, 2]), instance.route)
-instanceS = Instance(instance.Lmax, instance.nbOut, length(tmp), tmp)
-
-s = Session(instanceS.Lmax, instanceS.route, compute_output(instanceS.route))
-s0, valid = rebuildSession_knapSack_model_V3!(s)
-
-sol = buildSolution_BF_final(instance)
-
-
+## ============================================================================================================== ##
+##                 #######        ##    #######  ########   #######               ####    ######                  ##
+##                 ##    ##      ##    ##        ##        ##         ######     ## ##   ##   ###                 ##
+##                 #######      ##      ######   #####      ######              ##  ##   ## ## ##                 ##
+##                 ##  ##      ##            ##  ##              ##   ######   ########  ###   ##                 ##
+##                 ##   ##    ##       #######   ########  #######                  ##    ######                  ##
+## ============================================================================================================== ##
 
 begin
-    env = Gurobi.Env()
-    tl_perm = 100
-    tl_rebuild = 10
+    O = 200 
+    n = 20
+    nbGaussian = round(Int64, O/2):round(Int64, 3O/4)
+    mat = generateMultipleGaussianSum(O, n, nbGaussian)
+    x = 1:O
+    p = plot()
+    for i = 1:n
+        plot!(x, mat[i, :] .+ (i*1.2), label="")
+    end 
+    display(p)
+end
 
-    opt = 0
-    for i=1:100
-        instance, opti = parseAnyInstance("instanceGaussian_$(i)_O40_R200_C100_opt_10.txt")
-        md, res, nb_ses, perm = full_partitioning_01_KP(instance.route, 100, 20, tl_perm, env)
-        sol::Solution = buildSolution_BFD_final(instance, perm, tl_rebuild, env)
-        length(sol.sessions) == opti ? (opt += 1, println("$(i) opti!")) : (println("$(i) end"))
+# USAGE: uncomment 1 instance generator and the corresponding parser:
+# -> generate a new instance under: "../data/Tests"
+# -> parse instance and display: std/mean volume/mail number + plots...
+
+begin
+    I           = 1
+    S           = 1
+    O           = 40
+    R           = 40
+    target      = "../data/Tests"
+    # writeInstanceBatterie_Distrib(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+    # writeInstanceBatterie_Contained(target, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
+    writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+    # writeInstanceBatterie_Chunk(target, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C120_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceContained_1_O$(O)_R$(R)_C150_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C120_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C205_opt_$(S).txt")
+    R2, O2 = size(mat)
+    s = Session(C, O2)
+    for i=1:R2
+        tmp = filter(x -> x != 0, mat[i, :])
+        push!(s.route, Route(i, mat[i, :], ntuple(i -> tmp[i], length(tmp))))
     end
-    print("|opti| = $(opt)")
+    compute_output!(s)
+    mail_nb = [count(x -> x != 0, mat[r, :]) for r=1:R2]
+    mail_vol = [mat[i, j] for i=1:R2 for j=1:O2 if mat[i, j] != 0]
+    println(s)
+    println("avg mail number = $(round(mean(mail_nb), digits=3))")
+    println("std mail number = $(round(std(mail_nb), digits=3))")
+    println("min mail number = $(minimum(mail_nb)), max mail number = $(maximum(mail_nb))")
+    println("avg mail volume = $(round(mean(mail_vol), digits=3))")
+    println("std mail volume = $(round(std(mail_vol), digits=3))")
+    println("min mail volume = $(minimum(mail_vol)), max mail volume = $(maximum(mail_vol))")
+    # println("$(sort(mail_nb))")
+    # println("$(sort(mail_vol))")
+
+    x_number = minimum(mail_nb):maximum(mail_nb)
+    y_number = [count(x->x==i, mail_nb) for i=x_number]
+    p_number = plot(xlabel = "mail number", ylabel = "route number", title="mail per route distribution", xlims=(minimum(mail_nb)-.5, maximum(mail_nb)+.5))
+    bar!(x_number, y_number, label="")
+
+    x_vol = minimum(mail_vol):maximum(mail_vol)
+    y_vol = [count(x->x==i, mail_vol) for i=x_vol]
+    p_volume = plot(xlabel = "mail sizes", ylabel = "occurrence", title="distribution of mail volume", xlims=(minimum(mail_vol)-.5, maximum(mail_vol)+0.5))
+    bar!(x_vol, y_vol, label="")
+
+    display(plot(p_number, p_volume, layout=(2,1), size = (1250, 1600)))
+end
+
+begin
+    I           = 100
+    O           = 40
+    R           = 40
+    # target      = "../data/HardIndus/"
+    # target      = "../data/Contained/"
+    # target      = "../data/Skewed/"
+    target      = "../data/Chunk/"
+    for S in [1, 2, 5, 10, 20]
+        # writeInstanceBatterie_Distrib(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+        # writeInstanceBatterie_Contained(target, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
+        # writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+        writeInstanceBatterie_Chunk(target, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+    end
+end
+
+## ============================================================================================================== ##
+##                 #######        ##    #######  ########   #######             ######    ######                  ##
+##                 ##    ##      ##    ##        ##        ##         ######   ##    ##  ##   ###                 ##
+##                 #######      ##      ######   #####      ######              ######   ## ## ##                 ##
+##                 ##  ##      ##            ##  ##              ##   ######   ##    ##  ###   ##                 ##
+##                 ##   ##    ##       #######   ########  #######              ######    ######                  ##
+## ============================================================================================================== ##
+
+begin
+    O = 200 
+    n = 20
+    nbGaussian = round(Int64, O/2):round(Int64, 3O/4)
+    mat = generateMultipleGaussianSum(O, n, nbGaussian)
+    x = 1:O
+    p = plot()
+    for i = 1:n
+        plot!(x, mat[i, :] .+ (i*1.2), label="")
+    end 
+    display(p)
+end
+
+# USAGE: uncomment 1 instance generator and the corresponding parser:
+# -> generate a new instance under: "../data/Tests"
+# -> parse instance and display: std/mean volume/mail number + plots...
+
+begin
+    I           = 1
+    S           = 1
+    O           = 80
+    R           = 80
+    target      = "../data/Tests"
+    # writeInstanceBatterie_Distrib(target, I, S, R, O, 240, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+    # writeInstanceBatterie_Contained(target, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 4, 38, round(Int64, O/2):round(Int64, 3O/4))
+    # writeInstanceBatterie_Skewed(target, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+    writeInstanceBatterie_Chunk(target, I, S, R, O, 405, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C240_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceContained_1_O$(O)_R$(R)_C300_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C300_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C405_opt_$(S).txt")
+    R2, O2 = size(mat)
+    s = Session(C, O2)
+    for i=1:R2
+        tmp = filter(x -> x != 0, mat[i, :])
+        push!(s.route, Route(i, mat[i, :], ntuple(i -> tmp[i], length(tmp))))
+    end
+    compute_output!(s)
+    mail_nb = [count(x -> x != 0, mat[r, :]) for r=1:R2]
+    mail_vol = [mat[i, j] for i=1:R2 for j=1:O2 if mat[i, j] != 0]
+    # println(s)
+    println("avg mail number = $(round(mean(mail_nb), digits=3))")
+    println("std mail number = $(round(std(mail_nb), digits=3))")
+    println("min mail number = $(minimum(mail_nb)), max mail number = $(maximum(mail_nb))")
+    println("avg mail volume = $(round(mean(mail_vol), digits=3))")
+    println("std mail volume = $(round(std(mail_vol), digits=3))")
+    println("min mail volume = $(minimum(mail_vol)), max mail volume = $(maximum(mail_vol))")
+    # println("$(sort(mail_nb))")
+    # println("$(sort(mail_vol))")
+
+    x_number = minimum(mail_nb):maximum(mail_nb)
+    y_number = [count(x->x==i, mail_nb) for i=x_number]
+    p_number = plot(xlabel = "mail number", ylabel = "route number", title="mail per route distribution", xlims=(minimum(mail_nb)-.5, maximum(mail_nb)+.5))
+    bar!(x_number, y_number, label="")
+
+    x_vol = minimum(mail_vol):maximum(mail_vol)
+    y_vol = [count(x->x==i, mail_vol) for i=x_vol]
+    p_volume = plot(xlabel = "mail sizes", ylabel = "occurrence", title="distribution of mail volume", xlims=(minimum(mail_vol)-.5, maximum(mail_vol)+0.5))
+    bar!(x_vol, y_vol, label="")
+
+    display(plot(p_number, p_volume, layout=(2,1), size = (1250, 1600)))
+end
+
+begin
+    I           = 100
+    R           = 80
+    # target      = "../data/HardIndus/"
+    # target      = "../data/Contained/"
+    # target      = "../data/Skewed/"
+    target      = "../data/Chunk/"
+    for O in [80, 120]
+        for S in [1, 2, 5, 10]
+            # writeInstanceBatterie_Distrib(target, I, S, R, O, 240, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+            # writeInstanceBatterie_Contained(target, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 4, 38, round(Int64, O/2):round(Int64, 3O/4))
+            # writeInstanceBatterie_Skewed(target, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+            writeInstanceBatterie_Chunk(target, I, S, R, O, 405, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+        end
+    end
+end
+
+## ============================================================================================================== ##
+##            #######        ##    #######  ########   #######             /###      ######    ######             ##
+##            ##    ##      ##    ##        ##        ##         ######    # ##           ##  ##   ###            ##
+##            #######      ##      ######   #####      ######                ##       ####    ## ## ##            ##
+##            ##  ##      ##            ##  ##              ##   ######      ##     ##        ###   ##            ##
+##            ##   ##    ##       #######   ########  #######              ######    ######    ######             ##
+## ============================================================================================================== ##
+
+begin
+    O = 200 
+    n = 20
+    nbGaussian = round(Int64, O/2):round(Int64, 3O/4)
+    mat = generateMultipleGaussianSum(O, n, nbGaussian)
+    x = 1:O
+    p = plot()
+    for i = 1:n
+        plot!(x, mat[i, :] .+ (i*1.2), label="")
+    end 
+    display(p)
+end
+
+# USAGE: uncomment 1 instance generator and the corresponding parser:
+# -> generate a new instance under: "../data/Tests"
+# -> parse instance and display: std/mean volume/mail number + plots...
+
+begin
+    I           = 1
+    S           = 1
+    O           = 80
+    R           = 120
+    target      = "../data/Tests"
+    # writeInstanceBatterie_Distrib(target, I, S, R, O, 400, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+    # writeInstanceBatterie_Contained(target, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 4, 60, round(Int64, O/2):round(Int64, 3O/4))
+    writeInstanceBatterie_Skewed(target, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+    # writeInstanceBatterie_Chunk(target, I, S, R, O, 605, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C400_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceContained_1_O$(O)_R$(R)_C450_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C450_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C605_opt_$(S).txt")
+    R2, O2 = size(mat)
+    s = Session(C, O2)
+    for i=1:R2
+        tmp = filter(x -> x != 0, mat[i, :])
+        push!(s.route, Route(i, mat[i, :], ntuple(i -> tmp[i], length(tmp))))
+    end
+    compute_output!(s)
+    mail_nb = [count(x -> x != 0, mat[r, :]) for r=1:R2]
+    mail_vol = [mat[i, j] for i=1:R2 for j=1:O2 if mat[i, j] != 0]
+    # println(s)
+    println("avg mail number = $(round(mean(mail_nb), digits=3))")
+    println("std mail number = $(round(std(mail_nb), digits=3))")
+    println("min mail number = $(minimum(mail_nb)), max mail number = $(maximum(mail_nb))")
+    println("avg mail volume = $(round(mean(mail_vol), digits=3))")
+    println("std mail volume = $(round(std(mail_vol), digits=3))")
+    println("min mail volume = $(minimum(mail_vol)), max mail volume = $(maximum(mail_vol))")
+    # println("$(sort(mail_nb))")
+    # println("$(sort(mail_vol))")
+
+    x_number = minimum(mail_nb):maximum(mail_nb)
+    y_number = [count(x->x==i, mail_nb) for i=x_number]
+    p_number = plot(xlabel = "mail number", ylabel = "route number", title="mail per route distribution", xlims=(minimum(mail_nb)-.5, maximum(mail_nb)+.5))
+    bar!(x_number, y_number, label="")
+
+    x_vol = minimum(mail_vol):maximum(mail_vol)
+    y_vol = [count(x->x==i, mail_vol) for i=x_vol]
+    p_volume = plot(xlabel = "mail sizes", ylabel = "occurrence", title="distribution of mail volume", xlims=(minimum(mail_vol)-.5, maximum(mail_vol)+0.5))
+    bar!(x_vol, y_vol, label="")
+
+    display(plot(p_number, p_volume, layout=(2,1), size = (1250, 1600)))
+end
+
+begin
+    I           = 100
+    O           = 40
+    R           = 40
+    target      = "../data/Contained/"
+    for S in [1, 2, 5, 10]
+        # writeInstanceBatterie_Distrib(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+        # writeInstanceBatterie_Contained(target, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
+        # writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+        # writeInstanceBatterie_Chunk(target, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+    end
 end
