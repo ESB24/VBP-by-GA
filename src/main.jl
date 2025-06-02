@@ -526,16 +526,16 @@ end
 begin
     I           = 100
     R           = 20
-    # target      = "../data/HardIndus/"
-    # target      = "../data/Contained/"
-    # target      = "../data/Skewed/"
-    target      = "../data/Chunk/"
-    for O in [20, 40]
-        for S in [1, 2, 5, 10]
-            # writeInstanceBatterie_Distrib(target, I, S, R, O, 65, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
-            # writeInstanceBatterie_Contained(target, I, S, R, O, 75, 2, ceil(Int64, 2O/3), 4, 9, round(Int64, O/2):round(Int64, 3O/4))
-            # writeInstanceBatterie_Skewed(target, I, S, R, O, 60, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:6)
-            writeInstanceBatterie_Chunk(target, I, S, R, O, 95, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:20)
+    target1      = "../data/HardIndus/"
+    target2      = "../data/Contained/"
+    target3      = "../data/Skewed/"
+    target4      = "../data/Chunk/"
+    for O in [200]
+        for S in [1, 2, 5, 10, 20]
+            writeInstanceBatterie_Distrib(target1, I, S, R, O, 65, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+            writeInstanceBatterie_Contained(target2, I, S, R, O, 75, 2, ceil(Int64, 2O/3), 4, 9, round(Int64, O/2):round(Int64, 3O/4))
+            writeInstanceBatterie_Skewed(target3, I, S, R, O, 60, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:6)
+            writeInstanceBatterie_Chunk(target4, I, S, R, O, 95, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:20)
         end
     end
 end
@@ -615,20 +615,29 @@ end
 
 begin
     I           = 100
-    O           = 40
     R           = 40
-    # target      = "../data/HardIndus/"
-    # target      = "../data/Contained/"
-    # target      = "../data/Skewed/"
-    target      = "../data/Chunk/"
-    for S in [1, 2, 5, 10, 20]
-        # writeInstanceBatterie_Distrib(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
-        # writeInstanceBatterie_Contained(target, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
-        # writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
-        writeInstanceBatterie_Chunk(target, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+    target1      = "../data/HardIndus/"
+    target2      = "../data/Contained/"
+    target3      = "../data/Skewed/"
+    target4      = "../data/Chunk/"
+    for O in [80]
+        for S in [1, 2, 5, 10, 20]
+            writeInstanceBatterie_Distrib(target1, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+            writeInstanceBatterie_Contained(target2, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
+            writeInstanceBatterie_Skewed(target3, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+            writeInstanceBatterie_Chunk(target4, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+        end
     end
 end
 
+begin
+    I           = 100
+    for R in [120]
+        for O in [120]
+            writeInstanceBatterie_Distrib_easy(I, R, O)
+        end
+    end
+end
 ## ============================================================================================================== ##
 ##                 #######        ##    #######  ########   #######             ######    ######                  ##
 ##                 ##    ##      ##    ##        ##        ##         ######   ##    ##  ##   ###                 ##
@@ -704,16 +713,16 @@ end
 begin
     I           = 100
     R           = 80
-    # target      = "../data/HardIndus/"
-    # target      = "../data/Contained/"
-    # target      = "../data/Skewed/"
-    target      = "../data/Chunk/"
+    target1      = "../data/HardIndus/"
+    target2      = "../data/Contained/"
+    target3      = "../data/Skewed/"
+    target4      = "../data/Chunk/"
     for O in [80, 120]
         for S in [1, 2, 5, 10]
-            # writeInstanceBatterie_Distrib(target, I, S, R, O, 240, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
-            # writeInstanceBatterie_Contained(target, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 4, 38, round(Int64, O/2):round(Int64, 3O/4))
-            # writeInstanceBatterie_Skewed(target, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
-            writeInstanceBatterie_Chunk(target, I, S, R, O, 405, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+            writeInstanceBatterie_Distrib(target1, I, S, R, O, 240, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+            writeInstanceBatterie_Contained(target2, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 4, 38, round(Int64, O/2):round(Int64, 3O/4))
+            writeInstanceBatterie_Skewed(target3, I, S, R, O, 300, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+            writeInstanceBatterie_Chunk(target4, I, S, R, O, 405, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
         end
     end
 end
@@ -746,18 +755,19 @@ end
 begin
     I           = 1
     S           = 1
-    O           = 80
+    O           = 120
     R           = 120
     target      = "../data/Tests"
     # writeInstanceBatterie_Distrib(target, I, S, R, O, 400, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
     # writeInstanceBatterie_Contained(target, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 4, 60, round(Int64, O/2):round(Int64, 3O/4))
-    writeInstanceBatterie_Skewed(target, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
-    # writeInstanceBatterie_Chunk(target, I, S, R, O, 605, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+    # writeInstanceBatterie_Skewed(target, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+    writeInstanceBatterie_Chunk(target, I, S, R, O, 605, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
 
     # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C400_opt_$(S).txt")
     # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceContained_1_O$(O)_R$(R)_C450_opt_$(S).txt")
-    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C450_opt_$(S).txt")
-    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C605_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C450_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C605_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C605_opt_$(S).txt")
     R2, O2 = size(mat)
     s = Session(C, O2)
     for i=1:R2
@@ -792,13 +802,99 @@ end
 
 begin
     I           = 100
-    O           = 40
-    R           = 40
-    target      = "../data/Contained/"
-    for S in [1, 2, 5, 10]
-        # writeInstanceBatterie_Distrib(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
-        # writeInstanceBatterie_Contained(target, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
-        # writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
-        # writeInstanceBatterie_Chunk(target, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+    R           = 120
+    target1      = "../data/HardIndus/"
+    target2      = "../data/Contained/"
+    target3      = "../data/Skewed/"
+    target4      = "../data/Chunk/"
+    for O in [120]
+        for S in [1, 2, 5]
+            writeInstanceBatterie_Distrib(target1, I, S, R, O, 400, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
+            writeInstanceBatterie_Contained(target2, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 4, 60, round(Int64, O/2):round(Int64, 3O/4))
+            writeInstanceBatterie_Skewed(target3, I, S, R, O, 450, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+            writeInstanceBatterie_Chunk(target4, I, S, R, O, 605, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
+        end
     end
+end
+
+begin
+    I           = 1
+    S           = 1
+    O           = 120
+    R           = 120
+
+    all_mail_distrib = zeros(Int64, 120)
+    all_mail_sizes = zeros(Int64, 200)
+
+    avg_mail_nb = 0.
+    std_mail_nb = 0.
+    min_mail_nb = 0.
+    max_mail_nb = 0.
+
+    avg_mail_vol = 0.
+    std_mail_vol = 0.
+    min_mail_vol = 0.
+    max_mail_vol = 0.
+
+    for i=1:100
+        instance, nbSession = parseAnyInstance("myTrafic_$(i)_O$(O)_R$(R).txt")
+        C = instance.Lmax
+        mat = zeros(Int64, instance.nbRoute, instance.nbOut)
+        for r = 1:instance.nbRoute
+            mat[r, :] = instance.route[r].assignment
+        end
+        # C, mat, min_session = parseMyInstance_completed("../data/HardIndus/instanceIndus_$(i)_O$(O)_R$(R)_C400_opt_$(S).txt")
+        # C, mat, min_session = parseMyInstance_completed("../data/Contained/instanceContained_$(i)_O$(O)_R$(R)_C450_opt_$(S).txt")
+        # C, mat, min_session = parseMyInstance_completed("../data/Skewed/instanceSkewed_$(i)_O$(O)_R$(R)_C450_opt_$(S).txt")
+        # C, mat, min_session = parseMyInstance_completed("../data/Chunk/instanceChunk_$(i)_O$(O)_R$(R)_C605_opt_$(S).txt")
+        R2, O2 = size(mat)
+        s = Session(C, O2)
+        for i=1:R2
+            tmp = filter(x -> x != 0, mat[i, :])
+            push!(s.route, Route(i, mat[i, :], ntuple(i -> tmp[i], length(tmp))))
+        end
+        compute_output!(s)
+        mail_nb = [count(x -> x != 0, mat[r, :]) for r=1:R2]
+        mail_vol = [mat[i, j] for i=1:R2 for j=1:O2 if mat[i, j] != 0]
+
+        for e in mail_nb
+            all_mail_distrib[e] += 1
+        end
+        for e in mail_vol
+            all_mail_sizes[e] += 1
+        end
+
+        avg_mail_nb += mean(mail_nb)
+        std_mail_nb += std(mail_nb)
+        min_mail_nb += minimum(mail_nb)
+        max_mail_nb += maximum(mail_nb)
+
+        avg_mail_vol += mean(mail_vol)
+        std_mail_vol += std(mail_vol)
+        min_mail_vol += minimum(mail_vol)
+        max_mail_vol += maximum(mail_vol)
+    end
+
+    all_mail_distrib = [(k, e) for (k, e) in enumerate(all_mail_distrib) if e != 0]
+    all_mail_sizes = [(k, e) for (k, e) in enumerate(all_mail_sizes) if e != 0]
+
+    avg_mail_nb = round(avg_mail_nb/100, digits=3)
+    std_mail_nb = round(std_mail_nb/100, digits=3)
+    min_mail_nb = round(min_mail_nb/100, digits=3)
+    max_mail_nb = round(max_mail_nb/100, digits=3)
+
+    avg_mail_vol = round(avg_mail_vol/100, digits=3)
+    std_mail_vol = round(std_mail_vol/100, digits=3)
+    min_mail_vol = round(min_mail_vol/100, digits=3)
+    max_mail_vol = round(max_mail_vol/100, digits=3)
+
+    # println(s)
+    println("avg mail number = $(avg_mail_nb)")
+    println("std mail number = $(std_mail_nb)")
+    println("min mail number = $(min_mail_nb), max mail number = $(max_mail_nb)")
+    println("avg mail volume = $(avg_mail_vol)")
+    println("std mail volume = $(std_mail_vol)")
+    println("min mail volume = $(min_mail_vol), max mail volume = $(max_mail_vol)")
+    println("$(join(all_mail_distrib, " "))")
+    println("$(join(all_mail_sizes, " "))")
 end

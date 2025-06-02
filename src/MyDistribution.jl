@@ -88,3 +88,22 @@ end
 function distrib_uniform(n::Int64)
     return Categorical([1/n for _=1:n])
 end
+
+function distrib_gaussian(n::Int64)
+    range_min::Int64 = 1 
+    range_max::Int64 = n
+    μ::Float64 = n/2
+    σ::Float64 = n/6
+
+    # Create the normal distribution
+    d = Normal(μ, σ)
+
+    # Compute unnormalized probabilities for integers in [range_min, range_max]
+    probs = [pdf(d, x) for x in range_min:range_max]
+
+    # Normalize to make it a valid probability distribution
+    norm_probs = probs ./ sum(probs)
+
+    # Create a categorical distribution over the range
+    return Categorical(norm_probs)
+end

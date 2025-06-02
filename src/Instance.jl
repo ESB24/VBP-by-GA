@@ -614,13 +614,13 @@ end
 
 function generateRoutes_Distrib_easy(R::Int64, O::Int64)
 
-    distrib_sizeBatch   = distrib_trafic_batchSize(O)
-    distrib_nbBatch     = distrib_trafic_batchCount(O)
+    distrib_sizeBatch   = distrib_1onN(40)
+    distrib_nbBatch     = distrib_gaussian(round(Int64, 2O/3))
 
     rounds::Vector{Route} = Vector{Route}(undef, R)
 
     for i=1:R
-        nbBatch = rand(distrib_nbBatch)
+        nbBatch = round(Int64, O/6) + rand(distrib_nbBatch)
 
         rounds[i] = Route(i, O, ntuple(i -> rand(distrib_sizeBatch), nbBatch))
     end
@@ -634,7 +634,7 @@ function writeRoutes_Distrib_easy(rounds::Vector{Route}, id::Int64 = 0)
 
 
     filename = "myTrafic_$(id)_O$(O)_R$(R).txt"
-    path::String = "TER/data/MyTrafic/" 
+    path::String = "../data/MyTrafic(Indus.)" 
         
     # Create file
     println("instance generated : "*filename)

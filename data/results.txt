@@ -912,3 +912,48 @@ Indus & 200 & 200 & 2.0 & 10 & 8.383 & 0.0 & 2.0 & 0.0 & 31.299 & 125 & 125\\
         \caption{TODO}
         \label{table:res}
     \end{table}
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{4}{l}{MILP}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} & {\tt VAR}\\
+            \hline
+            \hline
+Indus. like & 20 & 20 & 1.0 & 2 & 2.403 & 0.8 & 1.8\\
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{4}{l}{MILP}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ}\\
+            \hline
+            \hline
+Indus & 20 & 20 & 2.4 & 10 & 2.471 & 0.0 & 2.4\\
+Indus & 20 & 40 & 2.7 & 7 & 154.15 & 0.15 & 3.0\\
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{4}{l}{MILP}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ}\\
+            \hline
+            \hline
+Indus & 20 & 20 & 2.4 & 10 & 2.105 & 0.0 & 2.4\\
+Indus & 20 & 40 & 2.7 & 7 & 272.68 & 0.15 & 3.0\\
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{6}{l}{BFD (\textsc{SA})}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} & {\tt VAR} & least loaded at ($\%$) & call & repair\\
+            \hline
+            \hline

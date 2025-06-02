@@ -205,22 +205,26 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
 # ===========< Model: >===========
 
     model = Model(Gurobi.Optimizer)
-    set_silent(model)
-    set_optimizer_attribute(model, "OutputFlag", 0)
+    # set_silent(model)
+    # set_optimizer_attribute(model, "OutputFlag", 0)
     set_optimizer_attribute(model, "TimeLimit", time_limit)
 
 # ===========< Variables: >===========
 
     # 1 if the j-th batch of round r is assigned to the output k ∈ O(r)j, 0 otherwise
+    print("<var-x>")
     @variable(model, x[r in R, j in Br[r], k in Orj[r][j]], Bin)
 
     # 1 if round r is located to session s, 0 otherwise
+    print("<var-y>")
     @variable(model, y[r in R, s in S], Bin)
 
     # 1 if at least one round is located to session s, 0 otherwise
+    print("<var-z>")
     @variable(model, z[s in S], Bin)
 
     # 1 if round r is allocated to session s and the j-th batch of round r is assigned to the output k ∈ O(r) j , 0 otherwise
+    print("<var-θ>")
     @variable(model, θ[r in R , j in Br[r] , k in Orj[r][j] , s in S], Bin)
 
 # ===========< Warmup: >===========
@@ -249,21 +253,25 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
 # ===========< Objective: >===========
 
     # (1) -> inimizing the number of used session
+    print("<obj-1>")
     @objective(model, Min, sum(z))
 
 # ===========< Constraint: >===========
 
     # (2) -> force each round to be allocated to exactly one session
+    print("<ctr-2>")
     for r in R
         @constraint(model, sum([y[r, s] for s in S]) == 1)
     end
 
     # (3) -> number of allocated rounds per session can not be greater than the number of machine outputs is
+    print("<ctr-3>")
     for s in S
         @constraint(model, sum([y[r, s] for r in R]) <= length(O) * z[s])
     end
 
     # (4) -> require that each batch j of round r be assigned to exactly oneoutput
+    print("<ctr-4>")
     for r in R
         for j in Br[r]
             @constraint(model, sum([x[r, j, k] for k in Orj[r][j]]) == 1)
@@ -282,6 +290,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     # end
 
     # (6) -> link between the variables x, y and θ
+    print("<ctr-6>")
     for r in R
         for s in S
             for j in Br[r]
@@ -293,6 +302,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     end
 
     # (7) -> precedence mail constraints for each round r
+    print("<ctr-7>")
     for r in R
         for j in Br[r]
             if j != length(Br[r])
@@ -302,6 +312,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     end
 
     # (8) -> the total load for each output of each session, which can not be greater than Lmax if the session is considered as not empty
+    print("<ctr-8>")
     for s in S
         for k in O
             @constraint(model, sum([sum([(vrj[r][j] * θ[r, j, k, s]) for j in Urk[r][k]]) for r in R]) <= Lmax * z[s])
@@ -309,6 +320,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     end
 
     # (9) -> used to avoid symmetry in this problem by preventing the next session from opening when the previous one is still empty
+    print("<ctr-9>")
     for s in S
         if s != N
             @constraint(model, z[s+1] <= z[s])
@@ -323,6 +335,10 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
         perm::Vector{Int64} = zeros(Int64, instance.nbRoute)
         permId::Int64 = 1
         sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if s != 0])
+
+        (termination_status(model) == OPTIMAL) ? (println("\x1b[33m <! OPTIMAL !>\x1b[0m")) : (println("\x1b[33m <! $(MOI.get(model, Gurobi.ModelAttribute("SolCount"))) solutions !>"))
+
+        println("\x1b[36m from model: $(value.(model[:z]))\n from var: $(value.(z))\x1b[0m")
         for s in S
             if value(z[s]) != 0
 

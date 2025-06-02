@@ -418,20 +418,47 @@ end
 
 function batterie_loadSmoothing_EM_SA(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O20_R20.txt" for i=1:10]),
 
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C205_opt_1.txt" for i=1:10]),
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R20_C65_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R20_C75_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R20_C95_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O40_R20.txt" for i=1:10]),
 
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R80_C240_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R80_C405_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C205_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O40_R40.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R40_C120_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O80_R40_C150_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R40_C120_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R40_C205_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O80_R40.txt" for i=1:10]),
+
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R80_C240_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R80_C405_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O80_R80.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O120_R80_C240_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O120_R80_C300_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O120_R80_C300_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O120_R80_C405_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O120_R80.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O120_R120_C400_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O120_R120_C450_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O120_R120_C450_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O120_R120_C605_opt_1.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O120_R120.txt" for i=1:10]),
             ]   ,
         result_path1        ::String                    = "../data/results1.txt",
         result_path2        ::String                    = "../data/results2.txt",
@@ -695,20 +722,48 @@ end
 
 function batterie_loadSmoothing_EM_SA_LP(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
 
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C205_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R20_C65_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O40_R20_C75_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R20_C95_opt_1.txt" for i=1:10]),
 
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R80_C240_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R80_C405_opt_1.txt" for i=1:10]),
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C120_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C205_opt_1.txt" for i=1:10]),
+
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R40_C120_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O80_R40_C150_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R40_C120_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R40_C205_opt_1.txt" for i=1:10]),
+
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O80_R80_C240_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O80_R80_C300_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O80_R80_C405_opt_1.txt" for i=1:10]),
+
+            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O120_R80_C240_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O120_R80_C300_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O120_R80_C300_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O120_R80_C405_opt_1.txt" for i=1:10]),
+
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O20_R20.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O40_R20.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O40_R40.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O80_R40.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O80_R80.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O120_R80.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O120_R120.txt" for i=1:10]),
+
+            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O120_R120_C400_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O120_R120_C450_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O120_R120_C450_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O120_R120_C605_opt_1.txt" for i=1:10]),
             ]   ,
         result_path1         ::String            = "../data/results3.txt",
         result_path2         ::String            = "../data/results4.txt",
@@ -774,6 +829,8 @@ function batterie_loadSmoothing_EM_SA_LP(;
         LP_gap1     ::Float64 = 0.
         LP_gap2     ::Float64 = 0.
         LP_gap3     ::Float64 = 0.
+        LP_gap4     ::Float64 = 0.
+        LP_gap5     ::Float64 = 0.
 
 # ==========< Init Run >==========
         println("\nGroup $k: $name")
@@ -840,14 +897,16 @@ function batterie_loadSmoothing_EM_SA_LP(;
 
             LP_opti1    += (lp_s == nothing) ? (0) : ((fitness(lp_s, obj1) == lb_obj1) ? (1) : (0)) 
             LP_opti2    += (lp_s == nothing) ? (0) : ((termination_status(lp_md) == OPTIMAL) ? (1) : (0)) 
-            LP_cpu      += ((lp_s == nothing) && (termination_status(lp_md) == OPTIMAL)) ? (0.) : (lp_cpu)
+            LP_cpu      += ((lp_s == nothing) || (termination_status(lp_md) != OPTIMAL)) ? (0.) : (lp_cpu)
             LP_obj1     += (lp_s == nothing) ? (0.) : (fitness(lp_s, obj1))
             LP_obj2     += (lp_s == nothing) ? (0.) : (fitness(lp_s, obj2))
             LP_improv1  += (lp_s == nothing || abs(start_obj1) == 0) ? (0.) : (abs(start_obj1 - fitness(lp_s, obj1)) / abs(start_obj1))
             LP_improv2  += (lp_s == nothing || abs(start_obj2) == 0) ? (0.) : (abs(start_obj2 - fitness(lp_s, obj2)) / abs(start_obj2))
-            LP_gap1     += (lp_s == nothing || abs(start_obj2 - lb_obj1) == 0) ? (0.) : (abs(fitness(sa_s1, obj1) - lb_obj1) / abs(start_obj2 - lb_obj1))
-            LP_gap2     += (lp_s == nothing || abs(start_obj2 - lb_obj1) == 0) ? (0.) : (abs(fitness(sa_s2, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2))
-            LP_gap3     += MOI.get(lp_md, Gurobi.ModelAttribute("MIPGap"))
+            LP_gap1     += (lp_s == nothing || abs(fitness(lp_s, obj1)) == 0) ? (0.) : (abs(fitness(lp_s, obj1) - lb_obj1) / abs(fitness(lp_s, obj1)))
+            LP_gap2     += (lp_s == nothing || abs(fitness(lp_s, obj2)) == 0) ? (0.) : (abs(fitness(lp_s, obj2) - lb_obj2) / abs(fitness(lp_s, obj2)))
+            LP_gap3     += (lp_s == nothing || abs(start_obj1 - lb_obj1) == 0) ? (0.) : (abs(fitness(lp_s, obj1) - lb_obj1) / abs(start_obj1 - lb_obj1))
+            LP_gap4     += (lp_s == nothing || abs(start_obj2 - lb_obj2) == 0) ? (0.) : (abs(fitness(lp_s, obj2) - lb_obj2) / abs(start_obj2 - lb_obj2))
+            LP_gap5     += MOI.get(lp_md, Gurobi.ModelAttribute("MIPGap"))
 
             println()
         end
@@ -860,35 +919,37 @@ function batterie_loadSmoothing_EM_SA_LP(;
         EM_cpu      /= length(group_path)
         EM_obj1     /= length(group_path)
         EM_obj2     /= length(group_path)
-        EM_improv1  /= length(group_path)
-        EM_improv2  /= length(group_path)
-        EM_gap1     /= length(group_path)
-        EM_gap2     /= length(group_path)
-        EM_gap3     /= length(group_path)
-        EM_gap4     /= length(group_path)
-        EM_gap5     /= length(group_path)
-        EM_gap6     /= length(group_path)
+        EM_improv1  /= length(group_path) * 0.01
+        EM_improv2  /= length(group_path) * 0.01
+        EM_gap1     /= length(group_path) * 0.01
+        EM_gap2     /= length(group_path) * 0.01
+        EM_gap3     /= length(group_path) * 0.01
+        EM_gap4     /= length(group_path) * 0.01
+        EM_gap5     /= length(group_path) * 0.01
+        EM_gap6     /= length(group_path) * 0.01
 
         SA_cpu      /= length(group_path)
         SA_obj1     /= length(group_path)
         SA_obj2     /= length(group_path)
-        SA_improv1  /= length(group_path)
-        SA_improv2  /= length(group_path)
-        SA_gap1     /= length(group_path)
-        SA_gap2     /= length(group_path)
-        SA_gap3     /= length(group_path)
-        SA_gap4     /= length(group_path)
-        SA_gap5     /= length(group_path)
-        SA_gap6     /= length(group_path)
+        SA_improv1  /= length(group_path) * 0.01
+        SA_improv2  /= length(group_path) * 0.01
+        SA_gap1     /= length(group_path) * 0.01
+        SA_gap2     /= length(group_path) * 0.01
+        SA_gap3     /= length(group_path) * 0.01
+        SA_gap4     /= length(group_path) * 0.01
+        SA_gap5     /= length(group_path) * 0.01
+        SA_gap6     /= length(group_path) * 0.01
 
         LP_cpu      /= max(LP_opti2, 1)
         LP_obj1     /= length(group_path)
         LP_obj2     /= length(group_path)
-        LP_improv1  /= length(group_path)
-        LP_improv2  /= length(group_path)
-        LP_gap1     /= length(group_path)
-        LP_gap2     /= length(group_path)
-        LP_gap3     /= length(group_path)
+        LP_improv1  /= length(group_path) * 0.01
+        LP_improv2  /= length(group_path) * 0.01
+        LP_gap1     /= length(group_path) * 0.01
+        LP_gap2     /= length(group_path) * 0.01
+        LP_gap3     /= length(group_path) * 0.01
+        LP_gap4     /= length(group_path) * 0.01
+        LP_gap5     /= length(group_path) * 0.01
 
 # ==========< Write line >==========
 
@@ -898,7 +959,7 @@ function batterie_loadSmoothing_EM_SA_LP(;
     write(fd2, "$(name) & $(O) & $(R) & $(round(meanlb1, digits=3)) & $(round(meanlb2, digits=3)) & $(SA_opti1) & $(SA_opti2) & $(round(SA_cpu, digits=3)) & $(round(SA_obj1, digits=3)) & $(round(SA_obj2, digits=3)) & $(round(SA_improv1, digits=3)) & $(round(SA_improv2, digits=3)) & $(round(SA_gap1, digits=3)) & $(round(SA_gap2, digits=3)) & $(round(SA_gap3, digits=3)) & $(round(SA_gap4, digits=3)) & $(round(SA_gap5, digits=3)) & $(round(SA_gap6, digits=3)) \\\\\n") # Head
     flush(fd2)
 
-    write(fd3, "$(name) & $(O) & $(R) & $(round(meanlb1, digits=3)) & $(round(meanlb2, digits=3)) & $(LP_opti1) & $(LP_opti2) & $(round(LP_cpu, digits=3)) & $(round(LP_obj1, digits=3)) & $(round(LP_obj2, digits=3)) & $(round(LP_improv1, digits=3)) & $(round(LP_improv2, digits=3)) & $(round(LP_gap1, digits=3)) & $(round(LP_gap2, digits=3)) & $(round(LP_gap3, digits=3)) \\\\\n") # Head
+    write(fd3, "$(name) & $(O) & $(R) & $(round(meanlb1, digits=3)) & $(round(meanlb2, digits=3)) & $(LP_opti1) & $(LP_opti2) & $(round(LP_cpu, digits=3)) & $(round(LP_obj1, digits=3)) & $(round(LP_obj2, digits=3)) & $(round(LP_improv1, digits=3)) & $(round(LP_improv2, digits=3)) & $(round(LP_gap1, digits=3)) & $(round(LP_gap2, digits=3)) & $(round(LP_gap3, digits=3)) & $(round(LP_gap4, digits=3)) & $(round(LP_gap5, digits=3)) \\\\\n") # Head
     flush(fd3)
 
 # ==========< End >==========
@@ -998,22 +1059,37 @@ end
 
 function batterie_MILP(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
-            #(("Indus. like", 30, 40), ["instanceIndus_$(i)_O40_R30_C40_opt_1.txt" for i=1:10]),
-            (("Indus. like", 30, 200), ["instanceIndus_$(i)_O40_R60_C40_opt_2.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O200_R20.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O200_R40.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O200_R100.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R400.txt" for i=1:10]),
 
-            #(("Contained", 20, 40), ["instanceContained_$(i)_O40_R20_C150_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C150_opt_2.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R20_C65_opt_1.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R40_C65_opt_2.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R100_C65_opt_5.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R200_C65_opt_10.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R400_C65_opt_20.txt" for i=1:10]),
 
-            #(("Skewed", 20, 40), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C60_opt_2.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C75_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R40_C75_opt_2.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R100_C75_opt_5.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R200_C75_opt_10.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R400_C75_opt_20.txt" for i=1:10]),
 
-            #(("Chunk", 20, 40), ["instanceChunk_$(i)_O40_R20_C100_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C100_opt_2.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C60_opt_1.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R40_C60_opt_2.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
 
-            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
-            (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C95_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R40_C95_opt_2.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R100_C95_opt_5.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R200_C95_opt_10.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R400_C95_opt_20.txt" for i=1:10]),
             ]   ,
-        result_path         ::String            = "../data/results.txt",
+        result_path         ::String            = "../data/results1.txt",
     )
     # ==========< Head >==========
 
@@ -1024,7 +1100,7 @@ function batterie_MILP(;
     write(fd, "        \\begin{tabular}{c c c c|c c c c c}\n")
     write(fd, "            \\hline\n")
     write(fd, "            \\multicolumn{4}{l|}{Instance} & \\multicolumn{4}{l}{MILP}\\\\\n")
-    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI} & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ} & {\\tt VAR}\\\\\n")
+    write(fd, "            type & \$|O|\$ & \$|R|\$ & \\textsc{OPTI} & \\#{\\tt OPTI}\$^{mod}\$ & \\#{\\tt OPTI}\$^{sol}\$ & {\\tt CPU} & {\\tt GAP} & {\\tt OBJ}\\\\\n")
     write(fd, "            \\hline\n")
     write(fd, "            \\hline\n")
 
@@ -1060,8 +1136,11 @@ function batterie_MILP(;
             success = 0
             start = time()
 
-            s_init, (call, success) = BFD_EM(instance.route, Lmax, O, R)
-            _, sol = model_01LP_warmstart(instance, Solution(collect(1:R), s_init), 600)
+            s_init, (call, success) = WFD_SA(instance.route, Lmax, O, R)
+
+            isSolutionValid(instance, s_init) ? (println("\x1b[32m Valid \x1b[0m")) : (println("\x1b[31m Invalid \x1b[0m"))
+
+            md, sol = model_01LP_warmstart(instance, Solution(collect(1:R), s_init), 900)
             sol_FD_EmptyMove = sol.sessions
             
             if sol_FD_EmptyMove != nothing
@@ -1095,7 +1174,7 @@ function batterie_MILP(;
     # ==========< Write line >==========
 
     write(fd, "$(name) & $(O) & $(R) & $(meanlb)") # Head
-    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj) & $(EM_var)") # EMPTY-MOVE
+    write(fd, " & $(EM_opti) & $(EM_cpu) & $(EM_gap) & $(EM_obj)") # EMPTY-MOVE
     write(fd, "\\\\\n")
     flush(fd)
 
@@ -1252,36 +1331,37 @@ end
 
 function batterie_SA(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
-            # (("Indus. like", 30, 200), ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:10]),
-            # (("Indus. like", 60, 200), ["instanceIndus_$(i)_O200_R60_C40_opt_2.txt" for i=1:5]),
-            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R150_C40_opt_5.txt" for i=1:10]),
-            # (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R300_C40_opt_10.txt" for i=1:10]),
-            (("Indus. like", 150, 200), ["instanceIndus_$(i)_O200_R600_C40_opt_20.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R20.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R40.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R100.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
+            (("Indus", 20, 200), ["myTrafic_$(i)_O200_R400.txt" for i=1:10]),
 
-            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:10]),
-            (("Contained", 40, 200), ["instanceContained_$(i)_O200_R40_C150_opt_2.txt" for i=1:5]),
-            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R100_C150_opt_5.txt" for i=1:10]),
-            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R200_C150_opt_10.txt" for i=1:10]),
-            (("Contained", 100, 200), ["instanceContained_$(i)_O200_R400_C150_opt_20.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R20_C65_opt_1.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R40_C65_opt_2.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R100_C65_opt_5.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R200_C65_opt_10.txt" for i=1:10]),
+            (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R400_C65_opt_20.txt" for i=1:10]),
+
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R20_C75_opt_1.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R40_C75_opt_2.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R100_C75_opt_5.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R200_C75_opt_10.txt" for i=1:10]),
+            (("Contained", 20, 200), ["instanceContained_$(i)_O200_R400_C75_opt_20.txt" for i=1:10]),
 
             (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R20_C60_opt_1.txt" for i=1:10]),
-            (("Skewed", 40, 200), ["instanceSkewed_$(i)_O200_R40_C80_opt_2.txt" for i=1:5]),
-            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
-            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
-            (("Skewed", 100, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R40_C60_opt_2.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R100_C60_opt_5.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
+            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
 
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:10]),
-            (("Chunk", 40, 200), ["instanceChunk_$(i)_O200_R40_C100_opt_2.txt" for i=1:5]),
-            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R100_C100_opt_5.txt" for i=1:10]),
-            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R200_C100_opt_10.txt" for i=1:10]),
-            (("Chunk", 100, 200), ["instanceChunk_$(i)_O200_R400_C100_opt_20.txt" for i=1:10]),
-
-            (("Indus", 200, 200), ["myTrafic_$(i)_O40_R200.txt" for i=1:10]),
-            (("Indus", 200, 200), ["myTrafic_$(i)_O100_R200.txt" for i=1:10]),
-            (("Indus", 200, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
-            # (("Indus", 800, 200), ["myTrafic_$(i)_O200_R800.txt" for i=1:10]),
-            ]   ,
-        result_path         ::String            = "../data/results.txt",
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R20_C95_opt_1.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R40_C95_opt_2.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R100_C95_opt_5.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R200_C95_opt_10.txt" for i=1:10]),
+            (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R400_C95_opt_20.txt" for i=1:10]),
+        ],
+        result_path         ::String            = "../data/results2.txt",
         fit_algo :: Int64 = 1,
     )
     # ==========< Head >==========
