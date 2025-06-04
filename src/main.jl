@@ -632,8 +632,8 @@ end
 
 begin
     I           = 100
-    for R in [120]
-        for O in [120]
+    for R in [100]
+        for O in [20, 40, 80, 120]
             writeInstanceBatterie_Distrib_easy(I, R, O)
         end
     end

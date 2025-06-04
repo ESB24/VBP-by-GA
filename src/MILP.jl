@@ -14,69 +14,83 @@ end
 `instance` is the evaluated instance and `N` is an upper bound on the number of session.
 """
 
-function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
-    # ===========< Notations: >===========
+function model_01LP(instance::Instance, sol::Solution, time_limit::Int64 = 600)::Tuple{Model, Union{Nothing, Solution}}
+# ===========< Parameters: >===========
+    N = length(sol.sessions)
+
     # is the set of all rounds
-    R::Vector{Int64} = collect(1:instance.nbRound)
+    R::Vector{Int64} = collect(1:instance.nbRoute)
 
     # is the set of batches for the round r ∈ R
-    Br::Vector{Vector{Int64}} = [[k for (k, v) in enumerate(r.assignment) if v != 0] for r in instance.rounds]
+    Br::Vector{Vector{Int64}} = [[k for (k, v) in enumerate(r.assignment) if v != 0] for r in instance.route]
 
     # is the volume of the j-th batch in the round r ∈ R. Here, j ∈ B(r)
-    vrj::Vector{Vector{Int64}} = [[v for v in r.assignment if v != 0] for r in instance.rounds]
+    vrj::Vector{Vector{Int64}} = [[v for v in r.assignment if v != 0] for r in instance.route]
 
     # is the set of available machine outputs
     O::Vector{Int64} = collect(1:instance.nbOut) 
 
     # is the interval of potential outputs for the j-th batch in the round r ∈ R
     Orj::Vector{Vector{Vector{Int64}}} = [[collect(j: length(O) - length(Br[r]) + j) for j in Br[r]] for r in R]
-
+    
     # is the set of mail bathes of round r, which can be potentially assigned to the output k ∈ O
     Urk::Vector{Vector{Vector{Int64}}} = [[[k for (k, v) in enumerate(Orj[r]) if o in v] for o in O] for r in R]
 
     # is the maximal load per output for any sorting session
-    Lmax = instance.C
+    Lmax = instance.Lmax
 
     # is the set of sorting sessions, where N is an upper bound on its number
     S::Vector{Int64} = collect(1:N)
 
-    # ===========< Model: >===========
+# ===========< Model: >===========
 
     model = Model(Gurobi.Optimizer)
+    # set_silent(model)
+    # set_optimizer_attribute(model, "OutputFlag", 0)
     set_optimizer_attribute(model, "TimeLimit", time_limit)
 
-    # ===========< Variables: >===========
+# ===========< Variables: >===========
 
     # 1 if the j-th batch of round r is assigned to the output k ∈ O(r)j, 0 otherwise
+    print("<var-x>")
     @variable(model, x[r in R, j in Br[r], k in Orj[r][j]], Bin)
 
     # 1 if round r is located to session s, 0 otherwise
+    print("<var-y>")
     @variable(model, y[r in R, s in S], Bin)
 
     # 1 if at least one round is located to session s, 0 otherwise
+    print("<var-z>")
     @variable(model, z[s in S], Bin)
 
     # 1 if round r is allocated to session s and the j-th batch of round r is assigned to the output k ∈ O(r) j , 0 otherwise
+    print("<var-θ>")
     @variable(model, θ[r in R , j in Br[r] , k in Orj[r][j] , s in S], Bin)
 
-    # ===========< Objective: >===========
+
+
+# ===========< Objective: >===========
 
     # (1) -> inimizing the number of used session
+    print("<obj-1>")
     @objective(model, Min, sum(z))
 
-    # ===========< Constraint: >===========
+# ===========< Constraint: >===========
 
     # (2) -> force each round to be allocated to exactly one session
+    print("<ctr-2>")
     for r in R
         @constraint(model, sum([y[r, s] for s in S]) == 1)
     end
 
     # (3) -> number of allocated rounds per session can not be greater than the number of machine outputs is
+    print("<ctr-3>")
     for s in S
         @constraint(model, sum([y[r, s] for r in R]) <= length(O) * z[s])
     end
 
     # (4) -> require that each batch j of round r be assigned to exactly oneoutput
+    print("<ctr-4>")
     for r in R
         for j in Br[r]
             @constraint(model, sum([x[r, j, k] for k in Orj[r][j]]) == 1)
@@ -84,13 +98,18 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
     end
 
     # (5) -> for a given round, there can be at most one batch per output.
-    for r in R
-        for k in O
-            @constraint(model, sum([x[r, j, k] for j in Urk[r][k]]) <= 1)
-        end
-    end
+    # for r in R
+    #     for k in O
+    #         @constraint(model, sum([x[r, j, k] for j in Urk[r][k]]) <= 1)
+    #     end
+    # end
+
+    # for r in R
+    #     @constraint(model, sum([x[r, 1, k] for k in Orj[r][1]]) == 1)
+    # end
 
     # (6) -> link between the variables x, y and θ
+    print("<ctr-6>")
     for r in R
         for s in S
             for j in Br[r]
@@ -102,6 +121,7 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
     end
 
     # (7) -> precedence mail constraints for each round r
+    print("<ctr-7>")
     for r in R
         for j in Br[r]
             if j != length(Br[r])
@@ -111,6 +131,7 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
     end
 
     # (8) -> the total load for each output of each session, which can not be greater than Lmax if the session is considered as not empty
+    print("<ctr-8>")
     for s in S
         for k in O
             @constraint(model, sum([sum([(vrj[r][j] * θ[r, j, k, s]) for j in Urk[r][k]]) for r in R]) <= Lmax * z[s])
@@ -118,6 +139,7 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
     end
 
     # (9) -> used to avoid symmetry in this problem by preventing the next session from opening when the previous one is still empty
+    print("<ctr-9>")
     for s in S
         if s != N
             @constraint(model, z[s+1] <= z[s])
@@ -126,11 +148,16 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
 
     optimize!(model)
 
+# ==========< Results >==========
+
     if termination_status(model) == OPTIMAL || MOI.get(model, Gurobi.ModelAttribute("SolCount")) > 0
-        # ==========< Re-building Solution instance >==========
-        perm::Vector{Int64} = zeros(Int64, instance.nbRound)
+        perm::Vector{Int64} = zeros(Int64, instance.nbRoute)
         permId::Int64 = 1
-        sol::Solution = Solution(perm, [Session(instance.C, instance.nbOut) for s in S if s != 0])
+        sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if s != 0])
+
+        (termination_status(model) == OPTIMAL) ? (println("\x1b[33m <! OPTIMAL !>\x1b[0m")) : (println("\x1b[33m <! $(MOI.get(model, Gurobi.ModelAttribute("SolCount"))) solutions !>"))
+
+        println("\x1b[36m from model: $(value.(model[:z]))\n from var: $(value.(z))\x1b[0m")
         for s in S
             if value(z[s]) != 0
 
@@ -139,7 +166,7 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
                     if value(y[r, s]) == 1
                         perm[permId] = r
                         permId += 1
-                        push!(sol.sessions[s].rounds, Round(r, zeros(Int64, length(O)), instance.rounds[r].batches))
+                        push!(sol.sessions[s].route, Route(r, zeros(Int64, length(O)), instance.route[r].mail))
                         roundId += 1
                         for k in O
                             val::Int64 = 0
@@ -151,8 +178,8 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
                                 end
                             end
 
-                            sol.sessions[s].rounds[roundId].assignment[k] = val
-                            sol.sessions[s].loads[k] += val
+                            sol.sessions[s].route[roundId].assignment[k] = val
+                            sol.sessions[s].load[k] += val
                         end
 
                     end
@@ -165,6 +192,7 @@ function model_01LP(instance::Instance, N::Int64, time_limit::Int64 = 600)
         return model, nothing
     end
 end
+
 
 
 """

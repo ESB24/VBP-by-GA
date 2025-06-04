@@ -607,3 +607,38 @@ Diverse & 200 & 20 & 1.0 & 0 & 42.785 & 1.0 & 2.0 & 0.0 & 6.638 & 33 & 23\\
 Diverse & 200 & 40 & 2.0 & 0 & 68.929 & 0.5 & 3.0 & 0.0 & 13.762 & 56 & 36\\
 Diverse & 200 & 100 & 5.0 & 0 & 166.225 & 0.2 & 6.0 & 0.0 & 30.869 & 153 & 107\\
 Diverse & 200 & 200 & 10.0 & 0 & 296.711 & 0.1 & 11.0 & 0.0 & 64.292 & 299 & 209\\
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{6}{l}{WFD (\textsc{SA})}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} & {\tt VAR} & least loaded at ($\%$) & call & repair\\
+            \hline
+            \hline
+Indus & 200 & 200 & 3.0 & 10 & 0.642 & 0.0 & 3.0 & 0.0 & 81.07 & 0 & 0\\
+            \hline
+        \end{tabular}
+        \caption{TODO}
+        \label{table:res}
+    \end{table}
+
+
+    \begin{table}[h]
+        \centering
+        \begin{tabular}{c c c c|c c c c c c c c}
+            \hline
+            \multicolumn{4}{l|}{Instance} & \multicolumn{6}{l}{WFD (\textsc{SA})}\\
+            type & $|O|$ & $|R|$ & \textsc{OPTI} & \#{\tt OPTI} & {\tt CPU} & {\tt GAP} & {\tt OBJ} & {\tt VAR} & least loaded at ($\%$) & call & repair\\
+            \hline
+            \hline
+Diverse & 20 & 20 & 1.0 & 0 & 0.161 & 1.0 & 2.0 & 0.0 & 2.892 & 28 & 18\\
+Diverse & 20 & 40 & 2.0 & 0 & 0.077 & 0.5 & 3.0 & 0.0 & 5.154 & 38 & 33\\
+Diverse & 20 & 100 & 5.0 & 0 & 0.115 & 0.2 & 6.0 & 0.0 & 12.738 & 96 & 83\\
+Indus & 200 & 200 & 3.0 & 10 & 0.648 & 0.0 & 3.0 & 0.0 & 81.07 & 0 & 0\\
+            \hline
+        \end{tabular}
+        \caption{TODO}
+        \label{table:res}
+    \end{table}
