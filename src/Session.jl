@@ -154,7 +154,7 @@ struct MostLoadedOut        <: FitnessSession end # Min
 @inline specialized(s::Session,::Type{OutputVariance})      = specialized(s.load, s.Lmax, OutputVariance)
 @inline specialized(s::Session,::Type{MaxOverload})         = specialized(s.load, s.Lmax, MaxOverload)
 @inline specialized(s::Session,::Type{Evgeny})              = specialized(s.load, s.Lmax, Evgeny)
-@inline specialized(s::Session,::Type{MostLoadedOut})       = specialized(s.load, s.Lmax, Evgeny)
+@inline specialized(s::Session,::Type{MostLoadedOut})       = specialized(s.load, s.Lmax, MostLoadedOut)
 
 """
 ```Julia

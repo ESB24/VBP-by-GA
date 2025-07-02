@@ -153,7 +153,7 @@ function model_01LP(instance::Instance, sol::Solution, time_limit::Int64 = 600):
     if termination_status(model) == OPTIMAL || MOI.get(model, Gurobi.ModelAttribute("SolCount")) > 0
         perm::Vector{Int64} = zeros(Int64, instance.nbRoute)
         permId::Int64 = 1
-        sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if s != 0])
+        sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if value(z[s]) != 0])
 
         (termination_status(model) == OPTIMAL) ? (println("\x1b[33m <! OPTIMAL !>\x1b[0m")) : (println("\x1b[33m <! $(MOI.get(model, Gurobi.ModelAttribute("SolCount"))) solutions !>"))
 
@@ -362,7 +362,7 @@ function model_01LP_warmstart(instance::Instance, sol::Solution, time_limit::Int
     if termination_status(model) == OPTIMAL || MOI.get(model, Gurobi.ModelAttribute("SolCount")) > 0
         perm::Vector{Int64} = zeros(Int64, instance.nbRoute)
         permId::Int64 = 1
-        sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if s != 0])
+        sol::Solution = Solution(perm, [Session(instance.Lmax, instance.nbOut) for s in S if value(z[s]) != 0])
 
         (termination_status(model) == OPTIMAL) ? (println("\x1b[33m <! OPTIMAL !>\x1b[0m")) : (println("\x1b[33m <! $(MOI.get(model, Gurobi.ModelAttribute("SolCount"))) solutions !>"))
 

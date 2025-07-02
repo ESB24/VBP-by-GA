@@ -574,12 +574,12 @@ begin
     target      = "../data/Tests"
     # writeInstanceBatterie_Distrib(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1, 30, distrib_1onN)
     # writeInstanceBatterie_Contained(target, I, S, R, O, 150, 2, ceil(Int64, 2O/3), 4, 19, round(Int64, O/2):round(Int64, 3O/4))
-    writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
+    # writeInstanceBatterie_Skewed(target, I, S, R, O, 120, 2, ceil(Int64, 2O/3), 1:5, 40:44, 1:7)
     # writeInstanceBatterie_Chunk(target, I, S, R, O, 205, 2, ceil(Int64, 2O/3), 10:10, 1:20, 1:25)
 
-    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceIndus_1_O$(O)_R$(R)_C120_opt_$(S).txt")
+    C, mat, min_session = parseMyInstance_completed("../data/HardIndus/instanceIndus_1_O20_R20_C65_opt_1.txt")
     # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceContained_1_O$(O)_R$(R)_C150_opt_$(S).txt")
-    C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C120_opt_$(S).txt")
+    # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceSkewed_1_O$(O)_R$(R)_C120_opt_$(S).txt")
     # C, mat, min_session = parseMyInstance_completed("../data/Tests/instanceChunk_1_O$(O)_R$(R)_C205_opt_$(S).txt")
     R2, O2 = size(mat)
     s = Session(C, O2)

@@ -1061,50 +1061,36 @@ function batterie_MILP(;
         all_group            ::Vector{Tuple{Tuple{String, Int64, Int64}, Vector{String}}}     = [ # |O|
             # (("Indus", 20, 200), ["myTrafic_$(i)_O20_R20.txt" for i=1:10]),
             # (("Indus", 20, 200), ["myTrafic_$(i)_O20_R40.txt" for i=1:10]),
-            # (("Indus", 20, 200), ["myTrafic_$(i)_O200_R200.txt" for i=1:10]),
-            # (("Indus", 20, 200), ["myTrafic_$(i)_O200_R400.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O40_R20.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O40_R40.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O20_R80.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O40_R80.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O80_R20.txt" for i=1:10]),
+            # (("Indus", 20, 200), ["myTrafic_$(i)_O80_R40.txt" for i=1:10]),
+
+            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
+            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O20_R40_C65_opt_2.txt" for i=1:10]),
+            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O40_R20_C65_opt_1.txt" for i=1:10]),
+            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O40_R40_C65_opt_2.txt" for i=1:10]),
+            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O20_R100_C65_opt_5.txt" for i=1:10]),
+            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O80_R40_C65_opt_2.txt" for i=1:10]),
+
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O20_R40_C75_opt_2.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O40_R20_C75_opt_1.txt" for i=1:10]),
+            # (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C75_opt_2.txt" for i=1:10]),
             
-            (("Indus", 20, 200), ["myTrafic_$(i)_O20_R100.txt" for i=1:10]),
-
-            (("Diverse", 30, 200), ["instanceIndus_$(i)_O20_R20_C65_opt_1.txt" for i=1:10]),
-            (("Diverse", 30, 200), ["instanceIndus_$(i)_O20_R40_C65_opt_2.txt" for i=1:10]),
-            (("Diverse", 30, 200), ["instanceIndus_$(i)_O20_R100_C65_opt_5.txt" for i=1:10]),
-            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R200_C65_opt_10.txt" for i=1:10]),
-            # (("Diverse", 30, 200), ["instanceIndus_$(i)_O200_R400_C65_opt_20.txt" for i=1:10]),
-
-            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R20_C75_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R40_C75_opt_2.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O20_R100_C75_opt_5.txt" for i=1:10]),
-            # (("Contained", 20, 200), ["instanceContained_$(i)_O200_R200_C75_opt_10.txt" for i=1:10]),
-            # (("Contained", 20, 200), ["instanceContained_$(i)_O200_R400_C75_opt_20.txt" for i=1:10]),
-
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R40_C60_opt_2.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R100_C60_opt_5.txt" for i=1:10]),
-            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R200_C60_opt_10.txt" for i=1:10]),
-            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O200_R400_C60_opt_20.txt" for i=1:10]),
-
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R40_C95_opt_2.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R100_C95_opt_5.txt" for i=1:10]),
-            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R200_C95_opt_10.txt" for i=1:10]),
-            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O200_R400_C95_opt_20.txt" for i=1:10]),
-
-            (("Indus", 20, 200), ["myTrafic_$(i)_O40_R20.txt" for i=1:10]),
-            (("Indus", 20, 200), ["myTrafic_$(i)_O40_R40.txt" for i=1:10]),
-            (("Indus", 20, 200), ["myTrafic_$(i)_O40_R100.txt" for i=1:10]),
-            (("Diverse", 30, 200), ["instanceIndus_$(i)_O40_R20_C65_opt_1.txt" for i=1:10]),
-            (("Diverse", 30, 200), ["instanceIndus_$(i)_O40_R40_C65_opt_2.txt" for i=1:10]),
-            (("Diverse", 30, 200), ["instanceIndus_$(i)_O40_R100_C65_opt_5.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R20_C75_opt_1.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R40_C75_opt_2.txt" for i=1:10]),
-            (("Contained", 20, 200), ["instanceContained_$(i)_O40_R100_C75_opt_5.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C60_opt_2.txt" for i=1:10]),
-            (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R100_C60_opt_5.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R20_C95_opt_1.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C95_opt_2.txt" for i=1:10]),
-            (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R100_C95_opt_5.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R20_C60_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R40_C60_opt_2.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R40_C60_opt_2.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O20_R100_C60_opt_5.txt" for i=1:10]),
+            # (("Skewed", 20, 200), ["instanceSkewed_$(i)_O40_R20_C60_opt_1.txt" for i=1:10]),
+            
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R20_C95_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O20_R40_C95_opt_2.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R20_C95_opt_1.txt" for i=1:10]),
+            # (("Chunk", 20, 200), ["instanceChunk_$(i)_O40_R40_C95_opt_2.txt" for i=1:10]),
             ]   ,
         result_path         ::String            = "../data/results1.txt",
     )
@@ -1159,6 +1145,8 @@ function batterie_MILP(;
 
             md, sol = model_01LP(instance, Solution(collect(1:R), s_init), 900)
             sol_s = (sol == nothing) ? (nothing) : (sol.sessions)
+
+            println("\x1b[36m $(sol_s) \x1b[0m")
 
             EM_opti_md  += (termination_status(md) == OPTIMAL) ? (1) : (0) 
             EM_opti_lb  += (sol == nothing) ? (0) : ((length(sol_s) == lb) ? (1) : (0))
