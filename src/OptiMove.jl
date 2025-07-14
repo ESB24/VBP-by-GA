@@ -1473,11 +1473,11 @@ function SimulatedAnnealing_V3(
             resIter[2, (j-1)*Mmax + i] = fitness(s_curr, obj)
             resIter[3, (j-1)*Mmax + i] = fitness(s_best, obj)
 
-            if isSessionValid(s_star) # feasibility check
-                s_best = s_star
-                # println("\n\nEND VALID\n")
-                break
-            end
+            # if isSessionValid(s_star) # feasibility check
+            #     s_best = s_star
+            #     # println("\n\nEND VALID\n")
+            #     break
+            # end
 
             if nogood >= Emax# 2*R # || T <= 0.001                                   # temperature is too low
                 τ_T *= 0.85                                 # 85 % of previous temperature
@@ -1532,7 +1532,7 @@ function SA_V4(
         display_plot    ::Bool = false                              , # generate plots
         display_state   ::Bool = false                              , # debug info
         τ               ::Float64 = .5                              , # initial allowed error %
-        α               ::Float64 = .98                             , # # cooling ratio
+        α               ::Float64 = .96                             , # # cooling ratio
         Emax            ::Int64   = round(Int64, length(s_init.load))*2 , # maximum number of epochs
         Mmax            ::Int64   = round(Int64, length(s_init.load))*2 , # maximum number of moves per epoch
     )
@@ -1560,14 +1560,14 @@ function SA_V4(
 
     # =====< Results tracking >=====
     # [1, 1:Emax]  -> T
-    # [2, 1:Emax]  -> TODO
+    # [2, 1:Emax]  -> sc
     # [3, 1:Emax]  -> # kept sol
     # [4, 1:Emax]  -> ∑ kept sol obj
     # [5, 1:Emax]  -> # degrading sol
     # [6, 1:Emax]  -> # kept degrading sol
     # [7, 1:Emax]  -> ∑ degrading sol obj kept
     # [8, 1:Emax]  -> obj at 0.6% accept chance regarding average s_curr
-    # [9, 1:Emax] -> obj at 50% accept chance regarding average s_curr
+    # [9, 1:Emax]  -> obj at 50% accept chance regarding average s_curr
     # [10, 1:Emax] -> obj(s_best)
     # [11, 1:Emax] -> worst s* of the eppoch
     # [12, 1:Emax] -> best s* of the eppoch
@@ -1647,14 +1647,14 @@ function SA_V4(
             resIter[2, (j-1)*Mmax + i] = fitness(s_curr, obj1)
             resIter[3, (j-1)*Mmax + i] = fitness(s_best1, obj1)
 
-            # if isSessionValid(s_star) # feasibility check
-            #     s_best1 = s_star
-            #     s_best2 = s_star
-            #     # println("\n\nEND VALID\n")
-            #     break
-            # end
+            if isSessionValid(s_star) # feasibility check
+                s_best1 = s_star
+                s_best2 = s_star
+                # println("\n\nEND VALID\n")
+                break
+            end
 
-            if nogood >= Emax# 2*R # || T <= 0.001                                   # temperature is too low
+            if nogood >= Mmax # 2*R # || T <= 0.001                                   # temperature is too low
                 τ_T *= 0.85                                 # 85 % of previous temperature
                 T = fitness(s_init, obj1) * .2 * τ_T         # warmum temperature
                 α -= .005                                    # increase cooling ration

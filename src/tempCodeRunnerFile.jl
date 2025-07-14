@@ -240,6 +240,38 @@ function RunSA_V3(inst_name::String = "instanceContained_1_O20_R20_C150_opt_1.tx
     return s, flag, res
 end
 
+function RunSA_V4(inst_name::String = "instanceSkewed_1_O40_R40_C120_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
+    instance, nbSession = parseAnyInstance(inst_name)
+
+    glob_s = shuffle!(Session(instance.Lmax, instance.route))
+
+    s1, s2, flag1, flag2, res = SA_V4(glob_s, display_plot=true, display_state=true)
+
+    return s1, s2, flag1, flag2, res
+end
+
+function RunSA_V4_all()
+    instances = ["myTrafic_$(i)_O80_R80.txt" for i=1:100]
+
+    result_path1::String = "../data/res_myTrafic_O80_R80.txt"
+
+    fd1 = open(result_path1, "w+")
+
+    for (k, i) in enumerate(instances)
+        s1, s2, flag1, flag2, res = RunSA_V4(i)
+
+        write(fd1, "### instance: $i\n")
+        write(fd1, " - load: $(s1.load)\n")
+        write(fd1, " - std: $(fitness(s1, LoadSTD))\n")
+        write(fd1, " - matrix:\n")
+        for r in s1.route
+            write(fd1, " $(rpad(r.id, 3)) : $(join([rpad(e, 2) for e in r.assignment], ", "))\n")
+        end
+        write(fd1, "\n\n")
+        flush(fd1)
+    end
+end
+
 function RunSA_V2_mergeRatio(inst_name = "instanceChunk_1_O200_R20_C100_opt_1.txt")
     # "instanceChunk_1_O200_R20_C100_opt_1.txt"
     # "instanceIndus_1_O200_R30_C40_opt_1.txt"
@@ -335,79 +367,75 @@ function Tuning_attr_α_SA_V3()
     return tmp, join(enumerate(tmp), " -- ")
 end
 
-function Tuning_attr_τ_SA_V3()
-    range_τ = 0.2:0.2:2.
+function Tuning_attr_SA_V3()
+    range_τ = 0.2:0.1:2.
+    range_α = 0.89:0.01:.99
 
-    plt = plot(
-        1,
-        xlim = ((range_τ)[begin], (range_τ)[end]),
-        xlabel = "τ",
-        # zlim = (minimum(res), maximum(res)),
-        ylabel = "average obj",
-        title = "τ parameter impact",
-        marker = 2,
-    )
+    res1 = zeros(Float64, length(range_α), length(range_τ))
+    res2 = zeros(Float64, length(range_α), length(range_τ))
+    best1 = nothing
+    best2 = nothing
 
-    display(plt)
+    result_path1::String = "../data/results1.txt"
+    result_path2::String = "../data/results2.txt"
 
-    res = zeros(Float64, length(range_τ))
-    best_sol = nothing
+    fd1 = open(result_path1, "a")
+    fd2 = open(result_path2, "a")
+
+    write(fd1, "\n\n < std >\n(→) τ = $(collect(range_τ))\n(↓) α = $(collect(range_α))\n")
+    write(fd2, "\n\n < overflow >\n(→) τ = $(collect(range_τ))\n(↓) α = $(collect(range_α))\n")
     
-    run = 4 * 5
+    run = 10 * 5
     
     instances = [
-                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:round(Int64, run/4)];
-                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:round(Int64, run/4)];
-                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:round(Int64, run/4)];
-                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:round(Int64, run/4)]
+                ["myTrafic_$(i)_O120_R120.txt" for i=1:round(Int64, run/5)];
+                ["instanceIndus_$(i)_O120_R120_C400_opt_1.txt" for i=1:round(Int64, run/5)];
+                ["instanceContained_$(i)_O120_R120_C450_opt_1.txt" for i=1:round(Int64, run/5)];
+                ["instanceSkewed_$(i)_O120_R120_C450_opt_1.txt" for i=1:round(Int64, run/5)];
+                ["instanceChunk_$(i)_O120_R120_C605_opt_1.txt" for i=1:round(Int64, run/5)]
             ]
 
-    for (i_τ, τ) in enumerate(range_τ)
-        for i=1:run
-            instance, nbSession = parseAnyInstance(instances[i])
-            glob_s = shuffle!(Session(instance.Lmax, instance.route))
+    for (i_α, α) in enumerate(range_α)
+        for (i_τ, τ) in enumerate(range_τ)
+            println("====================< τ=$τ and α=$α >====================")
+            for i=1:run
+                instance, nbSession = parseAnyInstance(instances[i])
+                glob_s = shuffle!(Session(instance.Lmax, instance.route))
 
-            s, flag, _ = SimulatedAnnealing_V3(deepcopy(glob_s), display_plot=false, display_state=false, α=.96, τ=τ, obj=LoadSTD)
+                s, _, flag, _, _ = SA_V4(deepcopy(glob_s), display_plot=false, display_state=false, α=α, τ=τ, obj1=LoadSTD)
 
-            res[i_τ] += fitness(s, OverloadVolume)
-            (best_sol === nothing || best_sol > fitness(s, OverloadVolume)) && (best_sol = fitness(s, OverloadVolume))
-            println("resolution: $i/$run -> $(fitness(s, OverloadVolume)) with τ=$τ")
-        end
-        println("merge ratio=$(best_sol/(res[i_τ]/run))\navg solution obj = $((res[i_τ]/run))")
+                res1[i_α, i_τ] += fitness(s, LoadSTD)
+                res2[i_α, i_τ] += fitness(s, OverloadVolume)
+
+                (best1 === nothing || best1 > fitness(s, LoadSTD)) && (best1 = fitness(s, LoadSTD))
+                (best2 === nothing || best2 > fitness(s, OverloadVolume)) && (best2 = fitness(s, OverloadVolume))
+
+                println(" - run $i/$run -> std = $(fitness(s, LoadSTD)), overload = $(fitness(s, OverloadVolume))")
+            end
+            println("(obj 1) -> merge ratio = $(best1/(res1[i_α, i_τ]/run))\n avg solution obj = $((res1[i_α, i_τ]/run))")
+            println("(obj 2) -> merge ratio = $(best2/(res2[i_α, i_τ]/run))\n avg solution obj = $((res2[i_α, i_τ]/run))")
             
-        push!(plt, τ, round(res[i_τ]/run, digits=3))
-        display(plt)
+            write(fd1, "$(round(res1[i_α, i_τ]/run, digits=3)), ") # $(τ) $(α) 
+            flush(fd1)
+            write(fd2, "$(round(res2[i_α, i_τ]/run, digits=3)), ") # $(τ) $(α) 
+            flush(fd2)
+        end
+        write(fd1, "\n") # $(τ) $(α) 
+        flush(fd1)
+        write(fd2, "\n") # $(τ) $(α) 
+        flush(fd2)
     end
 
     # build an animated gif by pushing new points to the plot, saving every 10th frame
-    tmp = round.(res ./ run, digits=3)
-    return tmp, join(enumerate(tmp), " -- ")
+
+    println("res1: max = $(maximum(res1)), min = $(minimum(res1))")
+    println("res2: max = $(maximum(res2)), min = $(minimum(res2))")
+    
+    return res1, res2
 end
 
 function Tuning_attr_move_SA_V3()
     range_move = 50:50:400
-
-    plt1 = plot(
-        1,
-        xlim = ((range_move)[begin], (range_move)[end]),
-        xlabel = "Emax=Mmax",
-        # zlim = (minimum(res), maximum(res)),
-        ylabel = "average obj",
-        title = "Emax and Mmax parameter impact on solution",
-        marker = 2,
-    )
-
-    plt2 = plot(
-        1,
-        xlim = ((range_move)[begin], (range_move)[end]),
-        xlabel = "Emax=Mmax",
-        # zlim = (minimum(res), maximum(res)),
-        ylabel = "average cpu",
-        title = "Emax and Mmax parameter impact on cpu",
-        marker = 2,
-    )
-
-    plt = plot(plt1, plt2)
 
     display()
 
@@ -435,9 +463,6 @@ function Tuning_attr_move_SA_V3()
             println("\nresolution: $i/$run -> $(fitness(s, OverloadVolume)) with move=$move\n")
         end
         println("merge ratio=$(best_sol/(res[i_move]/run))\navg solution obj = $((res[i_move]/run))")
-            
-        push!(plt, move, round(res[i_move]/run, digits=3))
-        display(plt)
     end
 end
 
@@ -513,10 +538,10 @@ function attr_bench_GR_V4()
     run_per_inst = 10
 
     instances = [
-                ["instanceIndus_$(i)_O200_R30_C40_opt_1.txt" for i=1:run_per_inst];
-                ["instanceContained_$(i)_O200_R20_C150_opt_1.txt" for i=1:run_per_inst];
-                ["instanceSkewed_$(i)_O200_R20_C80_opt_1.txt" for i=1:run_per_inst];
-                ["instanceChunk_$(i)_O200_R20_C100_opt_1.txt" for i=1:run_per_inst]
+                ["instanceIndus_$(i)_O200_R200_C40_opt_1.txt" for i=1:run_per_inst];
+                ["instanceContained_$(i)_O200_R200_C150_opt_1.txt" for i=1:run_per_inst];
+                ["instanceSkewed_$(i)_O200_R200_C80_opt_1.txt" for i=1:run_per_inst];
+                ["instanceChunk_$(i)_O200_R200_C100_opt_1.txt" for i=1:run_per_inst]
             ]
 
     tl = 10
@@ -545,4 +570,24 @@ function attr_bench_GR_V4()
     for (i, d1) in enumerate(range_d1)
         println("δ1 = $d1 -> $(res_opti[i, :])")
     end
+end
+
+function get_plot()
+    fd2 = open("../data/Plot/SA_res_iter.dat", "w+")
+
+    pad_iter::Int64 = ceil(Int64, log10(length(resI[1, :]))+1)
+
+    write(fd2, "$(rpad("m", pad_iter)) s*     sc     sb    \n")
+
+    for i=1:length(resI[1, :])
+        write(fd2, "$(rpad(i, pad_iter)) ")
+        write(fd2, "$(rpad(round(resI[1, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resI[2, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resI[3, i], digits=3), 6)) \n")
+    end
+
+    flush(fd2)
+
+    close(fd2)
+
 end
