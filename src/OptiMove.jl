@@ -1647,12 +1647,12 @@ function SA_V4(
             resIter[2, (j-1)*Mmax + i] = fitness(s_curr, obj1)
             resIter[3, (j-1)*Mmax + i] = fitness(s_best1, obj1)
 
-            if isSessionValid(s_star) # feasibility check
-                s_best1 = s_star
-                s_best2 = s_star
-                # println("\n\nEND VALID\n")
-                break
-            end
+            # if isSessionValid(s_star) # feasibility check
+            #     s_best1 = s_star
+            #     s_best2 = s_star
+            #     # println("\n\nEND VALID\n")
+            #     break
+            # end
 
             if nogood >= Mmax # 2*R # || T <= 0.001                                   # temperature is too low
                 τ_T *= 0.85                                 # 85 % of previous temperature
@@ -1701,7 +1701,7 @@ function SA_V4(
 end
 
 function EM_VE(
-        s               ::Session                                   ,   # initial session
+        s               ::Session                                   ;   # initial session
         obj1            ::Type{<:FitnessSession} = LoadSTD          , # regarded objective
         obj2            ::Type{<:FitnessSession} = MostLoadedOut    , # regarded objective
     )

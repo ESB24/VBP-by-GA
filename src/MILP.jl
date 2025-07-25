@@ -507,3 +507,121 @@ function MILP_load_ballance_warmstart(ses::Session, tl::Int64 = 600, env::Gurobi
     end
 end
 
+function MILP_load_ballance_V2_warmstart(ses::Session, tl::Int64 = 600, env::Gurobi.Env = Gurobi.Env())::Tuple{Model, Union{Nothing, Session}}
+# ===========< Parameters: >===========
+    R::Vector{Int64} = collect(1:length(ses.route))
+    O::Vector{Int64} = collect(1:length(ses.route[1].assignment))
+
+    # is the set of batches for the round r ∈ R
+    Br::Vector{Vector{Int64}} = [collect(1:length(r.mail)) for r in ses.route]
+    vrj::Vector = [r.mail for r in ses.route]
+
+    # is the interval of potential outputs for the j-th batch in the round r ∈ R
+    Orj::Vector{Vector{Vector{Int64}}} = [[collect(j: length(O) - length(Br[r]) + j) for j in Br[r]] for r in R]
+
+    # is the set of mail bathes of round r, which can be potentially assigned to the output k ∈ O
+    Urk::Vector{Vector{Vector{Int64}}} = [[[k for (k, v) in enumerate(Orj[r]) if o in v] for o in O] for r in R]
+    
+    # is the maximal load per output for any sorting session
+    Lmax::Int64 = ses.Lmax
+
+    L_mean::Float64 = sum(ses.load) / length(ses.load)
+
+# ===========< Model: >===========
+
+    model = Model(() -> Gurobi.Optimizer(env))
+    set_silent(model)
+    set_optimizer_attribute(model, "OutputFlag", 0)
+    set_optimizer_attribute(model, "TimeLimit", tl)
+
+# ===========< Variables: >===========
+
+    # 1 if the j-th batch of round r is assigned to the output k ∈ O(r)j, 0 otherwise
+    @variable(model, x[r in R, j in Br[r], k in Orj[r][j]], Bin)
+
+    # 1 if round r is allocated to session s and the j-th batch of round r is assigned to the output k ∈ O(r) j , 0 otherwise
+    @variable(model, 0 ≤ L[k in O], Int)
+
+    # 1 if the j-th batch of round r is assigned to the output k ∈ O(r)j, 0 otherwise
+    @variable(model, 0 ≤ z[k in O], Int)
+
+# ===========< Warmup: >===========
+
+    for (rId, r) in enumerate(ses.route)
+        batch::Int64 = 1
+        batchMax::Int64 = length(r.mail)
+        out::Int64 = 1
+
+        while batch <= batchMax
+            if r.assignment[out] != 0
+                set_start_value(x[r.id, batch, out], 1)
+                batch += 1
+            end
+            out += 1
+        end
+    end
+
+# ===========< Objective: >===========
+
+    # (0) -> minimize most loaded output
+    @objective(model, Min, (1 / length(O)) * sum(z))
+
+# ===========< Constraint: >===========
+
+    # (1) -> the total load for each output of each session, which can not be greater than Lmax if the session is considered as not empty
+    for k in O
+        @constraint(model, -z[k] ≤ L[k] - L_mean       )
+        @constraint(model,         L[k] - L_mean ≤ z[k])
+    end
+
+    # (2) -> each mail must be assigned
+    for r in R
+        for j in Br[r]
+            @constraint(model, sum([x[r, j, k] for k in Orj[r][j]]) == 1)
+        end
+    end
+
+    # (3) -> precedence mail constraints for each round r
+    for r in R
+        for j in Br[r]
+            if j != length(Br[r])
+                @constraint(model, sum([k * x[r, j, k] for k in Orj[r][j]]) <= sum([k * x[r, j+1, k] for k in Orj[r][j + 1]]) - 1.0)
+            end
+        end
+    end
+
+    # (4) -> the total load for each output of each session, which can not be greater than Lmax if the session is considered as not empty
+    for k in O
+        @constraint(model, sum([sum([(vrj[r][j] * x[r, j, k]) for j in Urk[r][k]]) for r in R]) == L[k])
+    end
+
+    optimize!(model)
+
+# ==========< Results >==========
+
+    # println("\nout = $(termination_status(model)) \n")
+
+    if termination_status(model) == OPTIMAL || MOI.get(model, Gurobi.ModelAttribute("SolCount")) > 0
+        sol::Session = deepcopy(ses)
+        
+        for r in R
+            sol.route[r].assignment = zeros(Int64, length(O))
+
+            for j in Br[r]
+                for k in Orj[r][j]
+                    if round(Int64, value(x[r, j, k])) == 1 
+                        sol.route[r].assignment[k] = sol.route[r].mail[j]
+                    end
+                end
+            end
+        end
+        
+        compute_output!(sol)
+
+        return model, sol
+    else
+        return model, nothing
+    end
+end
+
+

@@ -240,12 +240,12 @@ function RunSA_V3(inst_name::String = "instanceContained_1_O20_R20_C150_opt_1.tx
     return s, flag, res
 end
 
-function RunSA_V4(inst_name::String = "instanceSkewed_1_O40_R40_C120_opt_1.txt")#"instanceContained_1_O200_R20_C150_opt_1.txt")
+function RunSA_V4(inst_name::String = "instanceSkewed_1_O40_R40_C120_opt_1.txt", α=0.98, τ=0.3)#"instanceContained_1_O200_R20_C150_opt_1.txt")
     instance, nbSession = parseAnyInstance(inst_name)
 
     glob_s = shuffle!(Session(instance.Lmax, instance.route))
 
-    s1, s2, flag1, flag2, res = SA_V4(glob_s, display_plot=true, display_state=true)
+    s1, s2, flag1, flag2, res = SA_V4(glob_s, display_plot=true, display_state=true, α=α, τ=τ)
 
     return s1, s2, flag1, flag2, res
 end
@@ -572,22 +572,43 @@ function attr_bench_GR_V4()
     end
 end
 
-function get_plot()
+function get_plot_Iter()
     fd2 = open("../data/Plot/SA_res_iter.dat", "w+")
 
-    pad_iter::Int64 = ceil(Int64, log10(length(resI[1, :]))+1)
+    pad_iter::Int64 = ceil(Int64, log10(length(resIter[1, :]))+1)
 
     write(fd2, "$(rpad("m", pad_iter)) s*     sc     sb    \n")
 
-    for i=1:length(resI[1, :])
+    for i=64 800:66000
         write(fd2, "$(rpad(i, pad_iter)) ")
-        write(fd2, "$(rpad(round(resI[1, i], digits=3), 6)) ")
-        write(fd2, "$(rpad(round(resI[2, i], digits=3), 6)) ")
-        write(fd2, "$(rpad(round(resI[3, i], digits=3), 6)) \n")
+        write(fd2, "$(rpad(round(resIter[1, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resIter[2, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resIter[3, i], digits=3), 6)) \n")
     end
 
     flush(fd2)
 
     close(fd2)
+end
 
+function get_plot_Epoch()
+    fd2 = open("../data/Plot/SA_res_epoch.dat", "w+")
+
+    pad_iter::Int64 = ceil(Int64, log10(length(resEpoch[1, :]))+1)
+
+    write(fd2, "$(rpad("e", pad_iter)) T      sb     swe    sbe    sce    kept    \n")
+
+    for i=1:400
+        write(fd2, "$(rpad(i, pad_iter)) ")
+        write(fd2, "$(rpad(round(resEpoch[1, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resEpoch[10, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resEpoch[11, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resEpoch[12, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resEpoch[13, i], digits=3), 6)) ")
+        write(fd2, "$(rpad(round(resEpoch[3, i] ./ 400 .* 100, digits=3), 6)) \n")
+    end
+
+    flush(fd2)
+
+    close(fd2)
 end

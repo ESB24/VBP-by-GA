@@ -120,18 +120,24 @@ struct HollowedPercentage   <: FitnessSession end # Min
 struct NonFilledOutputs     <: FitnessSession end # Min
 struct LoadSTD              <: FitnessSession end # Min
 struct NonNulLoadSTD        <: FitnessSession end # Min
+struct SampleLoad_STD       <: FitnessSession end # Min
+struct SampleLoad_ABS_DEV   <: FitnessSession end # Min
 
 # Minimalistic Session
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{HollowedPercentage})       = (100 * ((Lmax * length(loads)) - sum(loads))) / (Lmax * length(loads))
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{NonFilledOutputs})         = float(count(x -> x >= Lmax, loads))
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{LoadSTD})                  = std(loads)
 @inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{NonNulLoadSTD})            = std([e for e in loads if e != 0])
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{SampleLoad_STD})           = sqrt(sum([(l - mean(loads))^2 for l in loads]) / (length(loads) - 1))
+@inline specialized(loads::Vector{Int64}, Lmax::Int64,::Type{SampleLoad_ABS_DEV})       = sum([abs(l - mean(loads)) for l in loads]) / (length(loads))
 
 # Full Session
 @inline specialized(s::Session,::Type{HollowedPercentage})  = specialized(s.load, s.Lmax, HollowedPercentage)
 @inline specialized(s::Session,::Type{NonFilledOutputs})    = specialized(s.load, s.Lmax, NonFilledOutputs)
 @inline specialized(s::Session,::Type{LoadSTD})             = specialized(s.load, s.Lmax, LoadSTD)
 @inline specialized(s::Session,::Type{NonNulLoadSTD})       = specialized(s.load, s.Lmax, NonNulLoadSTD)
+@inline specialized(s::Session,::Type{SampleLoad_STD})      = specialized(s.load, s.Lmax, SampleLoad_STD)
+@inline specialized(s::Session,::Type{SampleLoad_ABS_DEV})  = specialized(s.load, s.Lmax, SampleLoad_ABS_DEV)
 
 struct OverloadOutput       <: FitnessSession end # Min
 struct OverloadVolume       <: FitnessSession end # Min
